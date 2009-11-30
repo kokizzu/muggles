@@ -5,9 +5,9 @@ set -x -v
 if [[ ! `cat /etc/issue` =~ "Debian GNU/Linux 5.0" ]] ; then echo "This doesn't look like Lenny. Stopping." && exit 0 ; fi
 if [[ $PWD == "/" ]] ; then echo "Do the install from the source directory. Stopping" && exit 0  ; fi
 
-for i in incron iproute dnsmasq lighttpd sudo nmap logrotate
+for i in incron iproute dnsmasq lighttpd sudo nmap logrotate bandwidthd
 
-# to add: bandwidthd vnstat
+# to add: vnstat squid
 
 do 
   if [[ ! `( dpkg -s $i | grep ^Status )` =~ ^"Status: install ok installed" ]] ; then echo "Install $i first. Stopping." && exit 0  ; fi
@@ -203,5 +203,16 @@ fi
 done
 
 rm /etc/sudoers.tmp
+
+
+## bandwidthd
+
+if [[ -L /var/www/bandwidthd ]] ; then echo "have a symlink bandwidthd already so changing nothing"
+                                  else ln -s /var/lib/bandwidthd/htdocs/ /var/www/bandwidthd && echo 'made symlink /var/lib/bandwidthd/htdocs -> /var/www/bandwidthd'
+fi
+
+
+
+
 
 ) | column -s, -t

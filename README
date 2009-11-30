@@ -4,7 +4,7 @@ Quickstart :
 The setup
 ---------
 
-You need 3 ethernet cards on your gateway box.
+Assuming you have 3 ethernet cards on your gateway box.
 
 eth0 faces your lan, and is 192.168.0.12 by default.
 eth1 is your uplink1, and is 192.168.11.12 by default.
@@ -18,11 +18,15 @@ In pictures:
 
 
      T H E   I N T E R N E T  
-         |         |
+          |         |
         uplink1  uplink2
-          |       | 
-          gatewaybox
-              |
+          |        |
+         ______________
+         | gatewaybox |
+         --------------
+               |
+            lanlink
+               |
         --------------------------
        |            |        |
      alan         blan
@@ -31,11 +35,14 @@ In pictures:
 The install
 -----------
 
-Install lenny with a minimal bunch of package (no x needed). Also install nmap, lighttpd, incron iproute dnsmasq lighttpd sudo nmap.
+Install lenny with a minimal bunch of package (no x needed). Also install nmap, lighttpd, incron iproute dnsmasq lighttpd sudo nmap bandwidthd
+(for bandwidthd, select "any" when prompted).
+
 Unpack the tgz file in, say /root/muggles_source. To install, run ./installscript.
 
 Change the static ip addresses in /etc/network/interfaces to the static ips you use.
 Change the 192.168.0.12 address in /etc/lighttpd/lighttpd.conf to whatever you chose.
+Change the subnet addresses in /etc/bandwidthd/bandwidthd.conf to whatever you chose.
 
 Change/add mac addresses of the lan machines to /etc/dnsmasq.conf  (the dhcp-host= entries). 
 
@@ -256,7 +263,19 @@ www-data        lennygwbox= NOPASSWD: /etc/network/if-up.d/manualrouting_masq_ro
 
 This allows web gui scripts to work with root privileges.
 
-11. bandwidthd? See what machine is using what
+11. bandwidthd: aptitude install bandwidthd, and select "any" as the interface. /etc/bandwidthd/bandwidthd.conf for the default ips will then have these settings:
+
+
+  subnet 192.168.0.0/24
+  subnet 192.168.12.0/24
+  subnet 192.168.11.0/24
+
+  dev "any"
+
+Make a symlink: ln -s /var/lib/bandwidthd/htdocs/ /var/www/bandwidthd
+
+Point your browser at http://192.168.0.12/bandwidthd to see bandwidth usage.
+
 
 12 vnstat set it up so that monitoring is happening for all the interfaces
 
