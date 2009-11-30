@@ -1,6 +1,6 @@
 #!/bin/bash
-set -x
-set -v
+#set -x
+#set -v
 
 IFACE=$1
 PATH=/sbin:$PATH

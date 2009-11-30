@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#set -x -v
+set -x -v
 
 if [[ ! `cat /etc/issue` =~ "Debian GNU/Linux 5.0" ]] ; then echo "This doesn't look like Lenny. Stopping." && exit 0 ; fi
 if [[ $PWD == "/" ]] ; then echo "Do the install from the source directory. Stopping" && exit 0  ; fi
@@ -129,7 +129,7 @@ package_install var/www/switched.html /var/www/switched.html
 ARRAY=(\
 '@reboot       >/var/lib/misc/dnsmasq.leases.1 ; /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases' \
 '@reboot       for i in `grep -v ^# /etc/muggles/interfaces | grep .` ; do /usr/local/sbin/masq_ipconf $i ; done' \
-'@reboot       /usr/local/sbin/pinglogger' \
+'@reboot       ( /usr/local/sbin/pinglogger )' \
 '@reboot       sleep 30; aptitude update ; aptitude -q -s -y safe-upgrade | grep -A1 "The following packages will be upgraded:" | tail -1 | sed "s/^  //" > /var/log/muggles/secupdates'\
 )
 

@@ -1,10 +1,68 @@
+Quickstart :
+============
 
-# don't use dhcpd.conf - nameserver setting pdnsnameserver, modemnameserver, internet nameserver (need to fix with pdns later), gateway default, subnet of clients
-# don't use pdnsd - defaults ok, just set /usr/share/pdnsd/pdnsd-resolvconf -> server-ip to ip of gwbox (192.168.0.12) - problem: it has not way of dns updating host resolving of dhcp clients 
+The setup
+---------
+
+You need 3 ethernet cards on your gateway box.
+
+eth0 faces your lan, and is 192.168.0.12 by default.
+eth1 is your uplink1, and is 192.168.11.12 by default.
+eth2 is your uplink2, and is 192.168.12.12 by default.
+
+alan is one machine on the lan by default
+blan is another machine on the lan by default
+
+
+In pictures:
+
+
+     T H E   I N T E R N E T  
+         |         |
+        uplink1  uplink2
+          |       | 
+          gatewaybox
+              |
+        --------------------------
+       |            |        |
+     alan         blan
+
+
+The install
+-----------
+
+Install lenny with a minimal bunch of package (no x needed). Also install nmap, lighttpd, incron iproute dnsmasq lighttpd sudo nmap.
+Unpack the tgz file in, say /root/muggles_source. To install, run ./installscript.
+
+Change the static ip addresses in /etc/network/interfaces to the static ips you use.
+Change the 192.168.0.12 address in /etc/lighttpd/lighttpd.conf to whatever you chose.
+
+Change/add mac addresses of the lan machines to /etc/dnsmasq.conf  (the dhcp-host= entries). 
+
+Point a browser from alan (or rather, its replacement) to http://192.168.0.12 (or whatever you've changed it to) and admire the
+pre-millennial web interface 
+
+If you're lucky, that's it.
+
+If you're unlucky, well, here are the details so you can fix it.
+
+
+Not-so-quickstart:
+==================
+
+The Details
+===========
+
+
+The gateway machine should have 3 interfaces. The current package assumes they are eth0, eth1 and eth2.
+It also assumes that eth0 is facing the lan, eth1 is uplink1, and eth2 is uplink2.
+
+If the installation breaks, making it all work should be easy if you read how the set up is done:
+
 
 1. /etc/interfaces: assume one IP address per interface.
    (i) For lan-facing default eth0, use a static ip, set address to lan ip of gatewaybox itself, add netmask, (gateway, broadcast is optional, choice of auto or allow-hotplug is optional for eth and depends on if your nic has plugging detection). (note: /etc/network/if-up.d/masq_route_flush and /etc/dnsmasq.conf use eth0 as lan facing interface.)
-       For nameserver, a sensible sequence is to use the lan ip address of gatewaybox itself (192.168.0.12 in the example here), followed by the dns server suggested by the adsl router, followed by an major nameserver on the net (eg opendns.org).
+       For nameserver, a sensible sequence is to use the lan ip address of gatewaybox itself (192.168.0.12 in the example here, (dnsmasq is doing caching nameserving)), followed by the dns server suggested by the adsl router, followed by an major nameserver on the net (eg opendns.org). I've actually used an opendns nameserver rather than the adsl router dns so that nameserving should work getting stuck on a gateway box that uses another adsl router.
    (ii) For the uplink interfaces, add to allow-hotplug line, and add your interfaces and set up rt_tables route by adding a line like:  up ip route add default via 192.168.11.1 dev eth1 table uplink1.
 
 Sample (default) file:
@@ -24,7 +82,7 @@ allow-hotplug eth0 eth1 eth2
 iface eth0 inet static
   address 192.168.0.12
   netmask 255.255.255.0
-  dns-nameservers 192.168.0.12 192.168.1.254 4.2.2.4
+  dns-nameservers 192.168.0.12 208.67.220.220 208.67.222.222
 
 ## each interface should be added allow-hotplug line above
 ## each uplink interface will add an uplink1, uplink2, uplink2... routing table in iproute2/rt_tables
@@ -44,7 +102,7 @@ iface eth1 inet static
      fi ;\
      ip route add default via $gateway dev $IFACE table $uplinkname ;\
      ip route add default via $gateway
-  dns-nameservers 192.168.1.254 4.2.2.4
+  dns-nameservers 208.67.220.220 208.67.222.222
 
 ## ip route add default via $gateway
 ## sets non-table gateway of local host to above interface (to start with anyway)
@@ -60,7 +118,7 @@ iface eth2 inet static
         then echo "$serial	$uplinkname" >> $tablefile ;\
      fi ;\
      ip route add default via $gateway dev $IFACE table $uplinkname
-  dns-nameservers 192.168.1.254 4.2.2.4
+  dns-nameservers 208.67.220.220 208.67.222.222
 
 ## uplink3 etc, same kind of pattern as uplink2
 ## this file is not bash. You can only append a line of bash after "up" begins a stanza line.
@@ -73,7 +131,7 @@ For each uplink, interfaces file adds a line to this file. Eg for three uplinks,
 20      uplink2
 30      uplink3
 
-This is done automatically based on /etc/interfaces settings.
+This is done automatically based on /etc/interfaces settings. It is also persistent.
 
 
 3. /etc/dnsmasq.conf: set interface, dhcp-range, dhcp-host, dhcp-option   (put in mac manually each time a new machine is added to lan)

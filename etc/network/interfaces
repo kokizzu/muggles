@@ -13,7 +13,7 @@ allow-hotplug eth0 eth1 eth2
 iface eth0 inet static
   address 192.168.0.12
   netmask 255.255.255.0
-  dns-nameservers 192.168.0.12 192.168.1.254 4.2.2.4
+  dns-nameservers 192.168.0.12 208.67.220.220  208.67.222.222
 ## each interface should be added allow-hotplug line above
 ## each uplink interface will add an uplink1, uplink2, uplink2... routing table in iproute2/rt_tables
 ##    using 10, 20, 30... for the serial numbers means 25 uplink interfaces at most.
@@ -32,7 +32,7 @@ iface eth1 inet static
      fi ;\
      ip route add default via $gateway dev $IFACE table $uplinkname ;\
      ip route add default via $gateway
-  dns-nameservers 192.168.1.254 4.2.2.4
+  dns-nameservers 208.67.220.220 208.67.222.222
 
 ## ip route add default via $gateway
 ## sets non-table gateway of local host to above interface (to start with anyway)
@@ -48,7 +48,7 @@ iface eth2 inet static
         then echo "$serial	$uplinkname" >> $tablefile ;\
      fi ;\
      ip route add default via $gateway dev $IFACE table $uplinkname
-  dns-nameservers 192.168.1.254 4.2.2.4
+  dns-nameservers 208.67.220.220 208.67.222.222
 
 ## uplink3 etc, same kind of pattern as uplink2
 ## this file is not bash. You can only append a line of bash after "up" begins a stanza line.
