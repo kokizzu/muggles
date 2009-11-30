@@ -1,0 +1,55 @@
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The primary network interface
+allow-hotplug eth0 eth1 eth2
+#iface eth0 inet dhcp
+
+## lan
+iface eth0 inet static
+  address 192.168.0.12
+  netmask 255.255.255.0
+  dns-nameservers 192.168.0.12 192.168.1.254 4.2.2.4
+## each interface should be added allow-hotplug line above
+## each uplink interface will add an uplink1, uplink2, uplink2... routing table in iproute2/rt_tables
+##    using 10, 20, 30... for the serial numbers means 25 uplink interfaces at most.
+##    no check is done for if the serial number is already taken by another label. Should code that and put a limit too. Later.
+##    rt_tables uplink removal is not done. Should it be done?
+
+
+## uplink1
+iface eth1 inet static
+  address 192.168.11.12
+  netmask 255.255.255.0
+## adjust serial, uplinkname, gateway in next line for each interface you add
+  up serial=10 ; uplinkname=uplink1 ; gateway=192.168.11.1 ; tablefile=/etc/iproute2/rt_tables ;\
+     if ! ( grep -v ^# $tablefile | awk '{print $2}' | grep -q -x "$uplinkname" ) ;\
+        then echo "$serial	$uplinkname" >> $tablefile ;\
+     fi ;\
+     ip route add default via $gateway dev $IFACE table $uplinkname ;\
+     ip route add default via $gateway
+  dns-nameservers 192.168.1.254 4.2.2.4
+
+## ip route add default via $gateway
+## sets non-table gateway of local host to above interface (to start with anyway)
+
+
+## uplink2
+iface eth2 inet static
+  address 192.168.12.12
+  netmask 255.255.255.0
+## adjust serial, uplinkname, gateway in next line for each interface you add
+  up serial=20 ; uplinkname=uplink2 ; gateway=192.168.12.1 ; tablefile=/etc/iproute2/rt_tables ;\
+     if ! ( grep -v ^# $tablefile | awk '{print $2}' | grep -q -x "$uplinkname" ) ;\
+        then echo "$serial	$uplinkname" >> $tablefile ;\
+     fi ;\
+     ip route add default via $gateway dev $IFACE table $uplinkname
+  dns-nameservers 192.168.1.254 4.2.2.4
+
+## uplink3 etc, same kind of pattern as uplink2
+## this file is not bash. You can only append a line of bash after "up" begins a stanza line.
+

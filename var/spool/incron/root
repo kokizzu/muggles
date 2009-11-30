@@ -1,0 +1,1 @@
+/var/lib/misc/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /usr/local/sbin/rulerunner $@

@@ -1,0 +1,6 @@
+## put in the interfaces so that masq_ipconf works
+## putting masq_ipconf in if-up.d gives problems, so have to feed the interfaces from here
+## # will comment out lines
+eth0
+eth1
+eth2

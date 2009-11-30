@@ -1,0 +1,222 @@
+
+# don't use dhcpd.conf - nameserver setting pdnsnameserver, modemnameserver, internet nameserver (need to fix with pdns later), gateway default, subnet of clients
+# don't use pdnsd - defaults ok, just set /usr/share/pdnsd/pdnsd-resolvconf -> server-ip to ip of gwbox (192.168.0.12) - problem: it has not way of dns updating host resolving of dhcp clients 
+
+1. /etc/interfaces: assume one IP address per interface.
+   (i) For lan-facing default eth0, use a static ip, set address to lan ip of gatewaybox itself, add netmask, (gateway, broadcast is optional, choice of auto or allow-hotplug is optional for eth and depends on if your nic has plugging detection). (note: /etc/network/if-up.d/masq_route_flush and /etc/dnsmasq.conf use eth0 as lan facing interface.)
+       For nameserver, a sensible sequence is to use the lan ip address of gatewaybox itself (192.168.0.12 in the example here), followed by the dns server suggested by the adsl router, followed by an major nameserver on the net (eg opendns.org).
+   (ii) For the uplink interfaces, add to allow-hotplug line, and add your interfaces and set up rt_tables route by adding a line like:  up ip route add default via 192.168.11.1 dev eth1 table uplink1.
+
+Sample (default) file:
+
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The primary network interface
+allow-hotplug eth0 eth1 eth2
+#iface eth0 inet dhcp
+
+## lan
+iface eth0 inet static
+  address 192.168.0.12
+  netmask 255.255.255.0
+  dns-nameservers 192.168.0.12 192.168.1.254 4.2.2.4
+
+## each interface should be added allow-hotplug line above
+## each uplink interface will add an uplink1, uplink2, uplink2... routing table in iproute2/rt_tables
+##    using 10, 20, 30... for the serial numbers means 25 uplink interfaces at most.
+##    no check is done for if the serial number is already taken by another label. Should code that and put a limit too. Later.
+##    rt_tables uplink removal is not done. Should it be done?
+
+
+## uplink1
+iface eth1 inet static
+  address 192.168.11.12
+  netmask 255.255.255.0
+## adjust serial, uplinkname, gateway in next line for each interface you add
+  up serial=10 ; uplinkname=uplink1 ; gateway=192.168.11.1 ; tablefile=/etc/iproute2/rt_tables ;\
+     if ! ( grep -v ^# $tablefile | awk '{print $2}' | grep -q -x "$uplinkname" ) ;\
+        then echo "$serial	$uplinkname" >> $tablefile ;\
+     fi ;\
+     ip route add default via $gateway dev $IFACE table $uplinkname ;\
+     ip route add default via $gateway
+  dns-nameservers 192.168.1.254 4.2.2.4
+
+## ip route add default via $gateway
+## sets non-table gateway of local host to above interface (to start with anyway)
+
+
+## uplink2
+iface eth2 inet static
+  address 192.168.12.12
+  netmask 255.255.255.0
+## adjust serial, uplinkname, gateway in next line for each interface you add
+  up serial=20 ; uplinkname=uplink2 ; gateway=192.168.12.1 ; tablefile=/etc/iproute2/rt_tables ;\
+     if ! ( grep -v ^# $tablefile | awk '{print $2}' | grep -q -x "$uplinkname" ) ;\
+        then echo "$serial	$uplinkname" >> $tablefile ;\
+     fi ;\
+     ip route add default via $gateway dev $IFACE table $uplinkname
+  dns-nameservers 192.168.1.254 4.2.2.4
+
+## uplink3 etc, same kind of pattern as uplink2
+## this file is not bash. You can only append a line of bash after "up" begins a stanza line.
+
+Consider removing hotplug, adding other interfaces, other nameservers.
+
+2. /etc/iproute2/rt_tables
+For each uplink, interfaces file adds a line to this file. Eg for three uplinks, have:
+10      uplink1
+20      uplink2
+30      uplink3
+
+This is done automatically based on /etc/interfaces settings.
+
+
+3. /etc/dnsmasq.conf: set interface, dhcp-range, dhcp-host, dhcp-option   (put in mac manually each time a new machine is added to lan)
+
+setting mac address with host sets host name for each interface in the dnsmasq nameserver. So everyone on lan can refer to it. Each ip is assigned dynamically for the client, and held in /var/lib/misc/dnsmasq.leases. Standard dhcp is not proof against spoofing-IP-hijacking, and this can lead to strangeness later on. To be secure against that (eg if you are in a setting that should be paranoid), set up wpa with psk or similar.
+
+For the clients on the lan, dnsmasq on the gatewaybox can suggest the same nameservers as in the gatewaybox interfaces file with the dns-server option
+
+changed lines from dnsmasq.conf:
+
+
+interface=eth0
+dhcp-range=eth0,192.168.0.50,192.168.0.150,12h
+dhcp-host=08:00:27:3F:EC:5F,alan
+dhcp-host=08:00:27:5A:FB:91,blan
+dhcp-host=08:00:27:4D:0C:84,clan
+dhcp-host=08:00:27:DB:1F:5D,dlan
+## notes: names can be names-of-convenience - they don't have to match the hostnames of the machines which have those macs.
+dhcp-option=option:router,192.168.0.12
+
+#nameservers dhcp suggests
+dhcp-option=option:dns-server,192.168.0.12,192.168.1.254,4.2.2.4
+
+
+
+Consider setting range, lease time, dns options, routers, and timeserver
+There is no bash-style sourcing possible in dnsmasq.conf yet, so a source /etc/muggles/machine_mac_mappings would have to induce configuration of dnsmasq before dnsmasq starts.
+Which means rcS fixing. Leave it for now.
+
+(listen on 192.168.0.12  - added to /etc/openntpd/ntpd.conf,  dhcp-option=option:ntp-server,192.168.0.12     - added to /etc/dnsmasq.conf)
+
+
+4. inotify
+
+We want to monitor the dnsmasq leases file, because whenever it changes it means a machine has dhcp-joined or dhcp-left the LAN. When a machine has joined we add rules for it. When it leaves, we remove its rule.
+
+To set this up, first find where dnsmasq keeps its lease file. In Lenny it's at /var/lib/misc/dnsmasq.leases, unless otherwise defined in dnsmasq.conf.
+Running these 3 lines in your bash shell should tell you what it is:
+
+  leasefile=`( grep -v ^# /etc/dnsmasq.conf | grep dhcp-leasefile ) | cut -f2 -d=`
+  if [ -z "$leasefile" ] ; then leasefile="/var/lib/misc/dnsmasq.leases" ; fi
+  echo $leasefile
+
+Whereever it is, we want inotify to monitor it for changes. We do it with incron like this:
+
+#incrontab -e:
+/var/lib/misc/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /usr/local/sbin/rulerunner $@
+
+To make incron work for root, add the word root in /etc/incron.allow
+(For convenience you may want to set editor to vi in /etc/incron.conf)
+
+5. /usr/local/sbin/rulerunner
+Adds and deletes rules based on dnsmasq.leases changes. Changes are detected by inotify.
+In the rc scripts for lenny, dnsmasq starts before incron. So if dnsmasq.leases file changes are already done, then incron will not notice them. So for robustness, we run a dnsmasq.leases check using a @reboot line in cron (cron comes in after incron in lenny).
+
+6. /etc/muggles and /var/log/muggles/
+Need to do a
+  mkdir /var/log/muggles/ /etc/muggles/
+
+/var/log/muggles:
+   rulerunner.log can be used to log rulerunner runs, and rule assignment (if configured in /etc/muggles/rulerunner config? Plan for later.)
+   remote_ping_logs logs remote connectivity via an interface. (pinglogger generated)
+   near_ping_logs logs near connectivity via an interface. (pinglogger generated)
+   secupdates tracks if any updates exist for the host OS.
+/etc/muggles/ has:
+   rulerunner.conf (to be done. Decides rule assignment for machines)
+   pinglogger_config (sourced by pinglogger)
+   interfaces (list of interfaces used by masquerading set up run from /usr/local/sbin/masq_ipconf - bug in if-up.d/  prevents running up masq_ipconf completely (some iptables lines are not appended)). Add eth* manually.
+(dhcp's mac-machine settings are currently done in dnsmasq.conf, and interfaces decides rt_tables for uplinks)
+
+7. crontab
+
+In crontab we add @reboot lines like this:
+
+  @reboot >/var/lib/misc/dnsmasq.leases.1 ; /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases
+(This initializes dnsmasq so that incron will work)
+
+If your machine is rebooted every morning you can add:
+
+  @reboot aptitude update ; aptitude -q -s -y safe-upgrade | sed -n 's/^  \(.*$\)/\1/p' > /var/log/muggles/secupdates
+
+Or if it is on permanently, then set a suitable time to check for system upgrades. On stable, these will almost always be security related.
+The web interface uses the secupdate file.
+
+  @reboot  /usr/local/sbin/pinglogger
+
+Starts up the reachability logger.
+
+8. /etc/lighttpd.conf (ifconfig eth0)
+   (i) enable cgi module by using command "lighty-enable-mod cgi", and reload lighty: /etc/init.d/lighttpd restart
+   (ii) append own bits to lighttpd.conf with our own lanfacing (eth0) ip.address (defined in interfaces, or dig out the value with (ip -4 -o addr show dev eth0 | sed -n 's/^.*inet \(.*\)\/.*$/\1/p' ). We add this bit (to tweak cgi settings) to the default lenny lighttpd.conf file (then reload lighty):
+
+## Adding our bits now.
+## Here we enable cgi for anyone accessing this ip (mod-cgi default only enables for access from 127:1)
+## remoteip = ip address of browser, host = hostname in url requested
+
+$HTTP["host"] =~ "192.168.0.12" {
+        alias.url += (
+                "/cgi-bin/" => "/usr/lib/cgi-bin/"
+        )
+        $HTTP["url"] =~ "^/cgi-bin/" {
+                cgi.assign = ( "" => "" )
+        }
+}
+
+consider removing access to /usr/share and images, and dir listing from default lenny
+
+9. fix scripts:
+
+   (i) /usr/lib/showcurrent.cgi - the main web gui. Go through initializations section - defaults should work ok (configurations will probably be relocated to /etc/muggles/webconfig later)
+   (ii) /usr/local/sbin/masq_ipconf - for lan interface. Defaults should work ok. Have a look at the REJECT options for uplink facing interfaces for extra blocking. (the configuration will probably be relocated in a later version to somewhere in /etc/muggles/masqconfig. Or maybe just the ipconfig stuff will.) 
+   (iii) rulerunner - select random or roundrobin (to be coded) as distribution method for rules (configuration options will probably go in /etc/muggles/rulerunner.conf later)
+   (iv) /usr/local/sbin/pinglogger - reachability logger. Has a configuration file in /etc/muggles/pinglogger_config
+
+
+10. edit sudoers. If the box has a hostname of lennygwbox, then append:
+
+www-data        lennygwbox= NOPASSWD: /sbin/shutdown
+www-data        lennygwbox= NOPASSWD: /sbin/ip
+www-data        lennygwbox= NOPASSWD: /usr/bin/nmap
+www-data        lennygwbox= NOPASSWD: /etc/network/if-up.d/manualrouting_masq_routeflush
+
+This allows web gui scripts to work with root privileges.
+
+11. bandwidthd? See what machine is using what
+
+12 vnstat set it up so that monitoring is happening for all the interfaces
+
+13 logrotate
+for if the /var/log/muggles files keep growing and you want to keep them. Or you can just cron remove them.
+
+
+14. vbox
+Test environment setup:
+
+vboxmanage clonevdi alanclient.vdi dlanclient.vdi   (make sure alanclient.vdi is powered off)
+vboxmanage registerimage disk dlanclient.vdi
+vboxmanage createvm -name dlanclient
+
+do a comparison between vboxmanage showvminfo dlanclient and vboxmanage showvminfo alanclient, and modify acordingly,
+eg: vboxmanage modifyvm dlanclient -ostype Debian -memory 512MB
+
+synopsis: cat /var/log/muggles/bamlog ; cat /var/log/muggles/connectivitylog; nmap -sP host (or ping host) ; cat /root/secupdates ;
+
+
+

@@ -1,0 +1,207 @@
+#!/bin/bash
+
+#set -x -v
+
+if [[ ! `cat /etc/issue` =~ "Debian GNU/Linux 5.0" ]] ; then echo "This doesn't look like Lenny. Stopping." && exit 0 ; fi
+if [[ $PWD == "/" ]] ; then echo "Do the install from the source directory. Stopping" && exit 0  ; fi
+
+for i in incron iproute dnsmasq lighttpd sudo nmap logrotate
+
+# to add: bandwidthd vnstat
+
+do 
+  if [[ ! `( dpkg -s $i | grep ^Status )` =~ ^"Status: install ok installed" ]] ; then echo "Install $i first. Stopping." && exit 0  ; fi
+done
+
+echo "
+YOU ARE UNLIKELY TO BE ABLE TO CONNECT TO YOUR EXISTING SYSTEMS 
+AFTER THE DEFAULT INSTALLATION unless you adjust the network 
+settings to suit your own network situation after installation, 
+(before reboot in any case).
+
+This muggles installation script is meant for a clean lenny 
+system. It will set default working interface addresses that are 
+consistent, but these settings are unlikely to suit your network.
+
+The README file gives exact details on how a clean lenny is 
+changed to a default muggles installation. Read it to know how 
+to adjust the default muggles installation settings to suit your 
+network.
+
+[press enter to continue]
+"
+## read
+## put a network config script in later (feed to muggles/interfaces?)
+#tar xvzf muggles.tgz
+
+##
+
+
+
+(
+## matches column line at end, for pretty output
+
+
+function mkdir_if_not_there {
+if [[ ! -d $1 ]] ; then ( mkdir $1 && echo "created $1" ) ; fi
+}
+
+mkdir_if_not_there "/var/log/muggles"
+mkdir_if_not_there '/etc/muggles'
+
+
+
+function package_install {
+
+ts=`date +%Y%m%d%H%M%S`
+package_version="$1"
+installed_version="$2"
+
+
+if [[ -e $package_version ]] ; then
+   if [[ -e $installed_version ]] ; then
+      if [[ -n `diff $installed_version $package_version` ]] ; then
+         echo "$installed_version which is already installed is going to be changed to the version in the package version. Change? [y]" ; read yesno
+         if [[ $yesno =~ (n|N) ]] ; then ( echo "stopped" && exit 0 ) ; fi 
+         ( cp $installed_version "$installed_version"_"$ts" ) && echo "made a backup of the already installed version to ""$installed_version"'_'"$ts"
+         ( cp $package_version $installed_version ) && echo "overwrote already installed version $installed_version with package version $package_version"
+      else
+          echo "$installed_version and $package_version are the same, so changing nothing" 
+      fi
+   else
+      echo "Warning: no default already-installed version of $installed_version found. Create? [y]"; read yesno
+      if [[ $yesno =~ (n|N) ]] ; then ( echo "stopped" && exit 0 ) ; fi 
+      ( cp $package_version $installed_version ) && echo "created $installed_version"
+   fi
+else
+   echo "No $package_version (package version) file found. So changing nothing."
+fi
+
+}
+
+
+
+## /etc/
+
+package_install etc/dnsmasq.conf /etc/dnsmasq.conf 
+package_install etc/muggles/interfaces /etc/muggles/interfaces
+package_install etc/muggles/pinglogger_config /etc/muggles/pinglogger_config
+## cp etc/muggles/* /etc/muggles/
+package_install etc/network/interfaces /etc/network/interfaces
+package_install etc/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf
+
+
+## /usr/local/sbin
+
+package_install usr/local/sbin/masq_ipconf /usr/local/sbin/masq_ipconf
+package_install usr/local/sbin/pinglogger /usr/local/sbin/pinglogger
+package_install usr/local/sbin/rulerunner /usr/local/sbin/rulerunner
+
+## /usr/lib/cgi-bin
+
+package_install usr/lib/cgi-bin/cgi-test.cgi /usr/lib/cgi-bin/cgi-test.cgi
+package_install usr/lib/cgi-bin/mixed.cgi /usr/lib/cgi-bin/mixed.cgi
+package_install usr/lib/cgi-bin/showcurrent.cgi /usr/lib/cgi-bin/showcurrent.cgi
+package_install usr/lib/cgi-bin/shutcommand.cgi /usr/lib/cgi-bin/shutcommand.cgi
+package_install usr/lib/cgi-bin/switchisps.cgi /usr/lib/cgi-bin/switchisps.cgi
+
+
+## /var/www/
+
+package_install var/www/background.gif /var/www/background.gif
+package_install var/www/button-a.gif /var/www/button-a.gif
+package_install var/www/button.gif /var/www/button.gif 
+package_install var/www/favicon.ico /var/www/favicon.ico 
+package_install var/www/index.html /var/www/index.html
+package_install var/www/index.lighttpd.html /var/www/index.lighttpd.html
+package_install var/www/output.html /var/www/output.html
+package_install var/www/shutdown.html /var/www/shutdown.html
+package_install var/www/switched.html /var/www/switched.html
+
+
+
+## cron
+
+## need to check pre existence
+
+## add these lines
+
+ARRAY=(\
+'@reboot       >/var/lib/misc/dnsmasq.leases.1 ; /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases' \
+'@reboot       for i in `grep -v ^# /etc/muggles/interfaces | grep .` ; do /usr/local/sbin/masq_ipconf $i ; done' \
+'@reboot       /usr/local/sbin/pinglogger' \
+'@reboot       sleep 30; aptitude update ; aptitude -q -s -y safe-upgrade | grep -A1 "The following packages will be upgraded:" | tail -1 | sed "s/^  //" > /var/log/muggles/secupdates'\
+)
+
+
+ELEMENTS=${#ARRAY[@]}
+
+for (( i=0;i<$ELEMENTS;i++ )); do
+if ( grep -v ^# /var/spool/cron/crontabs/root  | grep ^"${ARRAY[${i}]}$" 2>&1 >/dev/null )
+   then echo "have a matching line for array element $i in crontab, so changing nothing" 
+   else
+   echo "installing array element $i into crontab"
+   ( crontab -l
+cat<<crontab_add
+${ARRAY[${i}]}
+crontab_add
+) | crontab -
+fi
+done
+
+( crontab -l | tail -1 | grep -v . ) || ( echo "cron needs a blank line at end" 
+   ( crontab -l ; echo ) | crontab -
+)
+
+
+
+## incron
+
+## need to check preexistence
+
+if [[ `incrontab -l` =~ '/var/lib/misc/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /usr/local/sbin/rulerunner $@' ]]
+   then echo "have a matching incron line, so changing nothing" 
+   else
+   echo "installing line into incrontab"
+   ( incrontab -l
+cat<<incrontab_add
+/var/lib/misc/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /usr/local/sbin/rulerunner $@
+incrontab_add
+) | incrontab -
+fi
+
+
+## sudoers
+
+this_host=`hostname`
+
+## add these lines to sudoers after checks
+
+ARRAY=(\
+"www-data        $this_host= NOPASSWD: /sbin/shutdown" \
+"www-data        $this_host= NOPASSWD: /sbin/ip" \
+"www-data        $this_host= NOPASSWD: /usr/bin/nmap" \
+"www-data        $this_host= NOPASSWD: /usr/local/sbin/rulerunner"\
+)
+
+while [[ -e /etc/sudoers.tmp ]] ; do ( echo "sudoers.tmp exists - is sudoers being edited already? If so, fix it then continue by pressing enter"  ; read ) ; done
+
+touch /etc/sudoers.tmp
+
+ELEMENTS=${#ARRAY[@]}
+
+for (( i=0;i<$ELEMENTS;i++)); do
+if ( grep ^"${ARRAY[${i}]}" /etc/sudoers 2>&1 >/dev/null ) 
+   then echo "have a matching line for ${ARRAY[${i}]} in sudoers, so changing nothing" 
+   else
+   ( 
+cat<<sudoer_add
+${ARRAY[${i}]}
+sudoer_add
+) >> /etc/sudoers
+fi
+done
+
+rm /etc/sudoers.tmp
+
+) | column -s, -t

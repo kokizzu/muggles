@@ -1,0 +1,109 @@
+#!/bin/sh
+#set -x
+#set -v
+
+## dynamic rules for machines on lan decide what uplink they will use when leases file changes
+## uses incrontab entry: /full/path/to/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /etc/network/if-up.d/rulerunner $@
+
+
+
+lastinterface=`ip link show | sed -e 's/[0-9][0-9]*: \(eth[0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x`
+## only works if interfaces used are eth...
+
+## routing defined in interfaces per table gives: 
+# roundrobin number? NUMBER_OF_UPLINKS=`ip route show table all | grep "^default via .*table uplink[1-9][0-9]*" | wc -l`
+
+## algorithm:
+
+## whenever lease changes:
+##   incron waits until this script ($0) is done (IN_NO_LOOP)
+##   leasesfile may still change before we can read it (so be atomic, and copy canonical leasefile, and work with leasefile copies)
+##   to go through leases (in copies), find ips that have been added from last time with a diff
+##   purge rules for that ip for all tables
+##   add rule for a table (randomly, or rr style)
+
+## when did this script run? (handy for inotify debugging)
+## echo `date`": "$1 >> /var/log/muggles/rulerunner.log
+
+## $1 = fullpath of dnsmasq.leases passed by incron
+filebasename=`basename "$1"`
+if echo "$filebasename" | grep -q . ; then
+      if [ -e $1.1 ] ; then cp $1.1 $1.2 ; fi
+      if [ -e $1 ] ; then cp $1 $1.1 ; fi
+fi
+## atomic, and secure
+
+
+function uplink_roundrobin_number
+{
+## defined in /etc/network/interfaces and /etc/iproute2/rt_tables  
+NUMBER_OF_UPLINKS=`ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x`
+NUMBER_OF_RULES=`ip rule show | grep '^32[0-9]\{3\}' | grep 'lookup uplink' | wc -l`
+## idea - automatically add rules in range 32000 - 32765. Can add rules manually to space < 32000)
+uplink_rr=$(( NUMBER_OF_RULES%NUMBER_OF_UPLINKS + 1 ))
+echo $uplink_rr
+}
+### important to do - must we remove rules when machine leaves so we have a correct number of rules so rr works? ( do removal with incron )
+## FIXME
+
+function uplink_random_uplink_number
+{
+NUMBER_OF_UPLINKS=`ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x`
+uplink_rand=$(( RANDOM%NUMBER_OF_UPLINKS +1 ))
+echo $uplink_rand
+}
+
+add_iplist=`diff $1.1 $1.2 | grep '^<' | cut -f4 -d" "`
+if echo "$add_iplist" | grep -q . ; then
+  for i in $add_iplist; do
+    while ( ip rule del from $i 2>/dev/null ) ; do
+      echo "removing new ip $i from rules"
+    done
+    ## get rid of *all* old rules on that ip just in case they exist
+    ip rule add from $i table uplink`uplink_random_uplink_number` ; echo "added new ip $i to rules"
+  done
+fi
+
+remove_iplist=`diff $1.1 $1.2 | grep '^>' | cut -f4 -d" "`
+if echo "$remove_iplist" | grep -q . ; then
+  for i in $remove_iplist; do
+    while ( ip rule del from $i 2>/dev/null ) ; do
+      echo "removing old ip $i from rules"
+    done
+    ## get rid of *all* old rules on that ip just in case they exist
+  done
+fi
+
+
+
+
+## manual rules section
+## what if we don't like the automatic rule above for uplink for a user? Then remove and reinsert. Eg:
+## if we want to force alan to uplink1 with priority 700 (let's keep non-roundrobin users below 1000, above 700)
+
+function manual_rule_insert {
+  machinename=$1; uplink=$2 ; priority=$3
+  ip_machine=`cut -f3,4 -d" " /var/lib/misc/dnsmasq.leases | grep '$1$' | cut -f1 -d" "`
+
+  if [ ! -z "$ip_machine" ] ; then
+    while ( ip rule del from $ip_machine 2>/dev/null ) ; do
+      echo "removing $ip_machine ($machinename) from rules"
+    done
+
+    ip rule add from $ip_machine table $uplink prio $priority
+  fi
+}
+
+
+## machinename=$1; uplink=$2 ; priority=$3
+#manual_rule_insert "alan" "uplink1" "700"
+## uncomment above line to assign rule so that machinename uses uplink1 with priority 700
+## and add other lines according to taste.
+
+##
+## end of manual rules section
+
+ip rule show
+ip route flush cache
+
+echo "done rules and flushing cache"

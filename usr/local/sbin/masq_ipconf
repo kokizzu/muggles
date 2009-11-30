@@ -1,0 +1,66 @@
+#!/bin/bash
+set -x
+set -v
+
+IFACE=$1
+PATH=/sbin:$PATH
+
+## ideally, would run this from if-up.d/, but only random rules get applied then - some race condition?
+## so currently running by relying on /etc/muggles/interfaces to feed in the interfaces, and an @reboot in cron starts it up.
+
+## set up firewall and masq rules when lan is up, but before uplinks are up
+if [ "${IFACE}" == "eth0" ] ; then
+
+  iptables -F
+  iptables -t nat -F
+  iptables -t mangle -F
+  iptables -X
+
+  # Always accept loopback traffic
+  iptables -A INPUT -i lo -j ACCEPT
+  iptables -A OUTPUT -o lo -j ACCEPT
+
+  iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+  iptables -A INPUT -m state --state NEW -i eth0 -j ACCEPT
+
+  iptables -t nat -A POSTROUTING -j MASQUERADE
+  
+  #if squid is running need this line
+  #iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
+  #end if squid is running need this line
+  
+  echo 1 > /proc/sys/net/ipv4/ip_forward
+  
+  echo "done masquerading and iptables for eth0"
+  
+  # since we can't do this in interfaces may as well do the following here:
+  
+  echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter
+  ## 1="on" means, if current packet's return path is through another interface than this one, then drop current packet. (Done by looking at source ip from current packet, and figuring if the route to that source goes via current interface). Only really need it off for bonding interfaces, surely? For single uplinks it is irrelevant. (remember to ip route flush cache when you change the setting)
+  
+  echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore
+  ## set it to 0 and any interface will claim the ip on arp, set it to 1 and only the interface with the ip responds.
+  
+  echo "done rp_filter off and arp_ignore on"
+fi
+
+
+if [[ "${IFACE}" =~ eth[1-9][0-9]* ]] ; then
+  #Allow established connections, and those not coming from the outside
+  iptables -A FORWARD -i ${IFACE} -o eth0 -m state --state ESTABLISHED,RELATED -j ACCEPT
+  
+  # Allow outgoing connections from the LAN side.
+  iptables -A FORWARD -i eth0 -o ${IFACE} -j ACCEPT
+  
+  #don't allow outside connections to LAN
+  iptables -A FORWARD -i ${IFACE} -o eth0 -j REJECT
+  
+  ##don't allow outsiders to access web interface etc on gateway (using gateway ips, 123.456.789.10 etc)
+  ## if [[ "${IFACE}" == eth1 ]] ; then iptables -A INPUT -i ${IFACE} -d 123.456.789.10 -m multiport -p tcp --destination-ports 80,111 -j REJECT ; fi
+  ## if [[ "${IFACE}" == eth2 ]] ; then iptables -A INPUT -i ${IFACE} -d 123.456.789.11 -m multiport -p tcp --destination-ports 80,111 -j REJECT ; fi
+  ## if [[ "${IFACE}" == eth3 ]] ; then iptables -A INPUT -i ${IFACE} -d 123.456.789.12 -m multiport -p tcp --destination-ports 80,111 -j REJECT ; fi
+  
+  #finally, don't allow outside connections to interface at all
+  #iptables -A INPUT -i ${IFACE} -j REJECT
+fi
+
