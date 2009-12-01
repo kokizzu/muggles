@@ -276,12 +276,63 @@ Make a symlink: ln -s /var/lib/bandwidthd/htdocs/ /var/www/bandwidthd
 
 Point your browser at http://192.168.0.12/bandwidthd to see bandwidth usage.
 
+(bandwidthd is pretty much the same as vnstat, except it has web display. I think vnstat would be better overall - later?)
 
-12 vnstat set it up so that monitoring is happening for all the interfaces
+
+### up to here reasonably solidly done
+
+12. squid
+
+For transparent web proxy caching with lenny's squid 2.7stable3 :
+
+In (network section of) /etc/squid.conf set:
+
+  http_port 127.0.0.1:3128 transparent
+  http_port 192.168.0.12:3128 transparent
+  visible_hostname lennygwbox.local
+
+To make visible_hostname work add lennygwbox.local in /etc/hosts to the line 127.0.0.1 like:
+  127.0.0.1       localhost       lennygwbox.local 
+
+In (acl section of) /etc/squid.conf set:
+
+  acl our_networks src 192.168.0.0/24
+  http_access allow our_networks
+ 
+and modify /usr/local/sbin/ipmasq to have:
+
+  iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
+
+(remove # to enable)
+
+To stop squid:
+   lennygwbox:~# /etc/init.d/squid stop && iptables -t nat -D PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
+   Stopping Squid HTTP proxy: squid Waiting.....................done.
+
+To start it up again:
+
+   lennygwbox:~# /etc/init.d/squid start && iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
+   Starting Squid HTTP proxy: squid.
+
+
+
+
+12. ipaudit
+extensive ip auditing. Logs each connection and stats.
+
+ipaudit would be nice. But it isn't a debian package, and is getting on the edge of being unmaintained. ( tips on making it work on debian: http://sourceforge.net/projects/ipaudit/forums/forum/59302/topic/2129381). It has issues (eg: http://www.debian-administration.org/articles/103#comment_11 , http://www.debian-administration.org/articles/103#comment_10 ,  http://sourceforge.net/projects/ipaudit/forums/forum/59302/topic/1669036?message=4148399 , http://sourceforge.net/projects/ipaudit/forums/forum/59302/topic/1522260 , http://sourceforge.net/projects/ipaudit/forums/forum/59302/topic/1454246 , and some may be hard to fix ).
+
+get tar.gz packages (wget http://downloads.sourceforge.net/project/ipaudit/ipaudit-web/ipaudit-web-1.0BETA9/ipaudit-web-1.0BETA9.tar.gz; wget http://downloads.sourceforge.net/project/ipaudit/ipaudit/ipaudit-1.0/ipaudit-1.0rc9.tar.gz )
+aptitude install make gcc libpcap0.8 libpcap0.8-dev gnuplot ;
+
+follow prompts on ./configure -> make etc
+adduser ipaudit when prompted
+set ipaudit.conf file localrange:  LOCALRANGE=192.168.0.0/16
+set ipaudit.conf file interface: INTERFACE=eth0:eth1:eth2
+
 
 13 logrotate
 for if the /var/log/muggles files keep growing and you want to keep them. Or you can just cron remove them.
-
 
 14. vbox
 Test environment setup:
@@ -294,6 +345,5 @@ do a comparison between vboxmanage showvminfo dlanclient and vboxmanage showvmin
 eg: vboxmanage modifyvm dlanclient -ostype Debian -memory 512MB
 
 synopsis: cat /var/log/muggles/bamlog ; cat /var/log/muggles/connectivitylog; nmap -sP host (or ping host) ; cat /root/secupdates ;
-
 
 
