@@ -56,121 +56,14 @@ The Details
 ===========
 
 
-For parts 1, 2, 3, see:
+Detailed documentation at:
 
 
 http://code.google.com/p/muggles/wiki/PageName#Not-so-Quickstart_(for_if_you_want_more)
 
 
-4. inotify
+some loose ends, notes which will be migrated to the wiki url above:
 
-We want to monitor the dnsmasq leases file, because whenever it changes it means a machine has dhcp-joined or dhcp-left the LAN. When a machine has joined we add rules for it. When it leaves, we remove its rule.
-
-To set this up, first find where dnsmasq keeps its lease file. In Lenny it's at /var/lib/misc/dnsmasq.leases, unless otherwise defined in dnsmasq.conf.
-Running these 3 lines in your bash shell should tell you what it is:
-
-  leasefile=`( grep -v ^# /etc/dnsmasq.conf | grep dhcp-leasefile ) | cut -f2 -d=`
-  if [ -z "$leasefile" ] ; then leasefile="/var/lib/misc/dnsmasq.leases" ; fi
-  echo $leasefile
-
-Whereever it is, we want inotify to monitor it for changes. We do it with incron like this:
-
-#incrontab -e:
-/var/lib/misc/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /usr/local/sbin/rulerunner $@
-
-To make incron work for root, add the word root in /etc/incron.allow
-(For convenience you may want to set editor to vi in /etc/incron.conf)
-
-5. /usr/local/sbin/rulerunner
-Adds and deletes rules based on dnsmasq.leases changes. Changes are detected by inotify.
-In the rc scripts for lenny, dnsmasq starts before incron. So if dnsmasq.leases file changes are already done, then incron will not notice them. So for robustness, we run a dnsmasq.leases check using a @reboot line in cron (cron comes in after incron in lenny).
-
-6. /etc/muggles and /var/log/muggles/
-Need to do a
-  mkdir /var/log/muggles/ /etc/muggles/
-
-/var/log/muggles:
-   rulerunner.log can be used to log rulerunner runs, and rule assignment (if configured in /etc/muggles/rulerunner config? Plan for later.)
-   remote_ping_logs logs remote connectivity via an interface. (pinglogger generated)
-   near_ping_logs logs near connectivity via an interface. (pinglogger generated)
-   secupdates tracks if any updates exist for the host OS.
-/etc/muggles/ has:
-   rulerunner.conf (to be done. Decides rule assignment for machines)
-   pinglogger_config (sourced by pinglogger)
-   interfaces (list of interfaces used by masquerading set up run from /usr/local/sbin/masq_ipconf - bug in if-up.d/  prevents running up masq_ipconf completely (some iptables lines are not appended)). Add eth* manually.
-(dhcp's mac-machine settings are currently done in dnsmasq.conf, and interfaces decides rt_tables for uplinks)
-
-7. crontab
-
-In crontab we add @reboot lines like this:
-
-  @reboot >/var/lib/misc/dnsmasq.leases.1 ; /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases
-(This initializes dnsmasq so that incron will work)
-
-If your machine is rebooted every morning you can add:
-
-  @reboot aptitude update ; aptitude -q -s -y safe-upgrade | sed -n 's/^  \(.*$\)/\1/p' > /var/log/muggles/secupdates
-
-Or if it is on permanently, then set a suitable time to check for system upgrades. On stable, these will almost always be security related.
-The web interface uses the secupdate file.
-
-  @reboot  /usr/local/sbin/pinglogger
-
-Starts up the reachability logger.
-
-8. /etc/lighttpd.conf (ifconfig eth0)
-   (i) enable cgi module by using command "lighty-enable-mod cgi", and reload lighty: /etc/init.d/lighttpd restart
-   (ii) append own bits to lighttpd.conf with our own lanfacing (eth0) ip.address (defined in interfaces, or dig out the value with (ip -4 -o addr show dev eth0 | sed -n 's/^.*inet \(.*\)\/.*$/\1/p' ). We add this bit (to tweak cgi settings) to the default lenny lighttpd.conf file (then reload lighty):
-
-## Adding our bits now.
-## Here we enable cgi for anyone accessing this ip (mod-cgi default only enables for access from 127:1)
-## remoteip = ip address of browser, host = hostname in url requested
-
-$HTTP["host"] =~ "192.168.0.12" {
-        alias.url += (
-                "/cgi-bin/" => "/usr/lib/cgi-bin/"
-        )
-        $HTTP["url"] =~ "^/cgi-bin/" {
-                cgi.assign = ( "" => "" )
-        }
-}
-
-consider removing access to /usr/share and images, and dir listing from default lenny
-
-9. fix scripts:
-
-   (i) /usr/lib/showcurrent.cgi - the main web gui. Go through initializations section - defaults should work ok (configurations will probably be relocated to /etc/muggles/webconfig later)
-   (ii) /usr/local/sbin/masq_ipconf - for lan interface. Defaults should work ok. Have a look at the REJECT options for uplink facing interfaces for extra blocking. (the configuration will probably be relocated in a later version to somewhere in /etc/muggles/masqconfig. Or maybe just the ipconfig stuff will.) 
-   (iii) rulerunner - select random or roundrobin (to be coded) as distribution method for rules (configuration options will probably go in /etc/muggles/rulerunner.conf later)
-   (iv) /usr/local/sbin/pinglogger - reachability logger. Has a configuration file in /etc/muggles/pinglogger_config
-
-
-10. edit sudoers. If the box has a hostname of lennygwbox, then append:
-
-www-data        lennygwbox= NOPASSWD: /sbin/shutdown
-www-data        lennygwbox= NOPASSWD: /sbin/ip
-www-data        lennygwbox= NOPASSWD: /usr/bin/nmap
-www-data        lennygwbox= NOPASSWD: /etc/network/if-up.d/manualrouting_masq_routeflush
-
-This allows web gui scripts to work with root privileges.
-
-11. bandwidthd: aptitude install bandwidthd, and select "any" as the interface. /etc/bandwidthd/bandwidthd.conf for the default ips will then have these settings:
-
-
-  subnet 192.168.0.0/24
-  subnet 192.168.12.0/24
-  subnet 192.168.11.0/24
-
-  dev "any"
-
-Make a symlink: ln -s /var/lib/bandwidthd/htdocs/ /var/www/bandwidthd
-
-Point your browser at http://192.168.0.12/bandwidthd to see bandwidth usage.
-
-(bandwidthd is pretty much the same as vnstat, except it has web display. I think vnstat would be better overall - later?)
-
-
-### up to here reasonably solidly done
 
 12. squid
 
@@ -204,52 +97,6 @@ To start it up again:
 
    lennygwbox:~# /etc/init.d/squid start && iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
    Starting Squid HTTP proxy: squid.
-
-
-
-
-13. ipaudit
-extensive ip auditing. Logs each connection and stats.
-
-ipaudit would be nice. But it isn't a debian package, and is getting on the edge of being unmaintained.
-
-For lenny: 
-
-get tar.gz packages:
-  wget http://downloads.sourceforge.net/project/ipaudit/ipaudit-web/ipaudit-web-1.0BETA9/ipaudit-web-1.0BETA9.tar.gz
-  wget http://downloads.sourceforge.net/project/ipaudit/ipaudit/ipaudit-1.0/ipaudit-1.0rc9.tar.gz )
-
-get other packages needed:
-  aptitude install make gcc libpcap0.8 libpcap0.8-dev gnuplot 
-
-unpack ipaudit*.tar.tgz files, and follow prompts on ./configure -> make etc
-when prompted to add user ipaudit
-  adduser ipaudit
-
-
-set ipaudit.conf file localrange:  LOCALRANGE=192.168.0.0/16
-set ipaudit.conf file interface: INTERFACE=eth0
-
- ( We will monitor the uplinks with vnstat or bandwidthd instead )
-
-ln -s /var/www/ipaudit /home/ipaudit/public_html
-ln -s '/var/www/~ipaudit' /home/ipaudit/public_html
-
-dare we?
-  chgrp www-data /home/ipaudit/ipaudit-web.conf
-yes we dare! It is read only.
-
-and fix lighttpd.conf:
-
-$HTTP["host"] =~ "192.168.0.12" {
-        alias.url += (
-                "/~ipaudit/cgi-bin/" => "/home/ipaudit/public_html/cgi-bin/",
-                "/~ipaudit/images/" => "/home/ipaudit/public_html/images/"
-        )
-        $HTTP["url"] =~ "^/~ipaudit/cgi-bin/" {
-                cgi.assign = ( "" => "" )
-        }
-}
 
 
 

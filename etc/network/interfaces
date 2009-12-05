@@ -13,7 +13,10 @@ allow-hotplug eth0 eth1 eth2
 iface eth0 inet static
   address 192.168.0.12
   netmask 255.255.255.0
-  dns-nameservers 192.168.0.12 208.67.220.220 8.8.8.8
+  dns-nameservers 192.168.0.12 8.8.8.8 208.67.220.220
+
+## nameservers in this order: dnsmasq, google public dns, opendns (opendns will give you a search page if the domain does not exist)
+
 
 ## fix openntpd to listen for lan requests on lan interface
 ## if there is no listen setting already, put the interface address into ntpd.conf:
@@ -76,7 +79,7 @@ iface eth1 inet static
      fi ;\
      ip route add default via $gateway dev $IFACE table $uplinkname ;\
      ip route add default via $gateway
-  dns-nameservers 208.67.220.220 8.8.8.8
+  dns-nameservers 8.8.8.8 208.67.220.220
 
 ## ip route add default via $gateway
 ## sets non-table gateway of local host to above interface (to start with anyway)
@@ -92,7 +95,7 @@ iface eth2 inet static
         then echo "$serial	$uplinkname" >> $tablefile ;\
      fi ;\
      ip route add default via $gateway dev $IFACE table $uplinkname
-  dns-nameservers 208.67.220.220 8.8.8.8
+  dns-nameservers 8.8.8.8 208.67.220.220
 
 ## uplink3 etc, same kind of pattern as uplink2
 ## this file is not bash. You can only append a line of bash after "up" begins a stanza line.
