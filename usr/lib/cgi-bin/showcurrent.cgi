@@ -16,7 +16,11 @@ UPLINK1_FAR_NAME=yahoo.com
 
 UPLINK1ROUTERURL="http://192.168.1.254/cgi/b/is/_ethoa_/dt/?be=0&l0=1&l1=1&name=Internet"
 #handy for looking at a status web page on speedtouch thomson st706 uplink router - put in your own or leave blank
-UPLINK1_MONTH_TOTAL=`echo -n \<a href=\"$UPLINK1ROUTERURL\" title=\";  vnstat -m -i eth1 | grep \`date +%b\` | awk '{ print  $(NF -9)" "$(NF -8)": "$(NF -1)" MB sent and received (free quota: 5GB, beyond quota: 1.5 per MB)"}' | tr "\n" " "; echo \"\>`
+UPLINK1_MONTH_TOTAL=`echo -n \<a href=\"$UPLINK1ROUTERURL\" title=\";  vnstat -m -i eth1 | grep \`date +%b\` | awk '{print "month "$(NF-10)": " $(NF -8) $(NF-7)" received "$(NF -5)$(NF-4)" sent "$(NF -2)$(NF-1)" total"}' | tr "\n" " "; echo \"\>`
+
+#awk '{ print  $(NF -9)" "$(NF -8)": "$(NF -1)" MB sent and received (free quota: 5GB, beyond quota: 1.5 per MB)"}' | tr "\n" " "; echo \"\>`
+
+
 
 UPLINK2=isp2
 
@@ -25,17 +29,10 @@ UPLINK2_FAR_NAME=google.com
 ## above 2 lines are automatically changed with changes in loggerconfig when pinglogger is run
 ##some router had this##UPLINK2ROUTERURL="http://$UPLINK2IP/cgi-bin/..%2Fcgi-bin%2Fwebcm?getpage=..%2Fhtml%2Fdefs%2Fstyle1%2Fmenus%2Fmenu1.html\&amp\;var\:style=style1\&amp\;var\:main=menu1\&amp\;var\:menu=status\&amp\;var\:menutitle=Status\&amp\;var\:pagename=syslog\&amp\;var\:errorpagename=syslog\&amp\;var\:pagetitle=System%20Log"
 UPLINK2ROUTERURL="http://192.168.1.254/cgi/b/is/_ethoa_/dt/?be=0&l0=1&l1=1&name=Internet"
-UPLINK2_MONTH_TOTAL=`echo -n \<a href=\"$UPLINK2ROUTERURL\" title=\"; vnstat -m -i eth2 | grep \`date +%b\` | cut -f1 -d'|' | tr '\n' ' '; echo received only \(free quota: 12GB, beyond quota: 1.25 per MB\). Sending is free as in beer!\"\>`
+UPLINK2_MONTH_TOTAL=`echo -n \<a href=\"$UPLINK2ROUTERURL\" title=\";  vnstat -m -i eth2 | grep \`date +%b\` | awk '{print "month "$(NF-10)": " $(NF -8) $(NF-7)" received "$(NF -5)$(NF-4)" sent "$(NF -2)$(NF-1)" total"}' | tr "\n" " "; echo \"\>`
 
-UPLINK3=RELIANCE
-UPLINK3IP=124.125.174.13
-UPLINK3_NEAR_IP=`ip route show | grep eth3 | grep via | cut -f3 -d" " | uniq`
-#UPLINK3PINGTARGET=220.224.140.29
-UPLINK3PINGTARGET=208.113.173.54
-#UPLINK3PINGTARGETNAME=220.224.140.29
-UPLINK3PINGTARGETNAME=srijanmedia
-UPLINK3ROUTERURL="http://$UPLINK3IP"
-UPLINK3_MONTH_TOTAL=`echo -n \<a href=\"$UPLINK3ROUTERURL\" title=\";  vnstat -m -i eth3 | grep \`date +%b\` | awk '{ print  $(NF -9)" "$(NF -8)": "$(NF -1)" MB sent and received (free quota: 35GB, beyond quota 0.5 per MB)"}' | tr "\n" " "; echo \"\>`
+UPLINK3=isp3
+##UPLINK3_MONTH_TOTAL=`echo -n \<a href=\"$UPLINK3ROUTERURL\" title=\";  vnstat -m -i eth3 | grep \`date +%b\` | awk '{ print  $(NF -9)" "$(NF -8)": "$(NF -1)" MB sent and received (free quota: 35GB, beyond quota 0.5 per MB)"}' | tr "\n" " "; echo \"\>`
 ###http://192.168.3.1/diagpppoe.html may be prefered
 
 ## Near IP is say, one to three hops up, far IP is many hops away.
