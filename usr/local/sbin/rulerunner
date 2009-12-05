@@ -1,10 +1,27 @@
 #!/bin/sh
-#set -x
-#set -v
+set -x
+set -v
 
 ## dynamic rules for machines on lan decide what uplink they will use when leases file changes
 ## uses incrontab entry: /full/path/to/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /etc/network/if-up.d/rulerunner $@
 
+logon=1
+log ()
+{ if [[ "${logon}" == "1" ]] ;
+  then echo "$1" >> /var/log/muggles/rulerunner.log
+ fi
+## $1 here is not the argument to main, but the argument to log. Bash is funny that way.
+}
+
+log "############`date`:#################"
+log "dnsmasq leases at: $1 are now :"
+while read line; do log "$line"; done < $1
+log "------------------------------------------"
+log "dnsmasq leases.1 is about to change from :"
+while read line; do log "$line"; done < $1.1
+log "dnsmasq leases.2 is about to change from :"
+while read line; do log "$line"; done < $1.2
+log "------------------------------------------"
 
 
 lastinterface=`ip link show | sed -e 's/[0-9][0-9]*: \(eth[0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x`
@@ -22,8 +39,6 @@ lastinterface=`ip link show | sed -e 's/[0-9][0-9]*: \(eth[0-9][0-9]*\): <BROADC
 ##   purge rules for that ip for all tables
 ##   add rule for a table (randomly, or rr style)
 
-## when did this script run? (handy for inotify debugging)
-## echo `date`": "$1 >> /var/log/muggles/rulerunner.log
 
 ## $1 = fullpath of dnsmasq.leases passed by incron
 filebasename=`basename "$1"`
@@ -32,7 +47,6 @@ if echo "$filebasename" | grep -q . ; then
       if [ -e $1 ] ; then cp $1 $1.1 ; fi
 fi
 ## atomic, and secure
-
 
 function uplink_roundrobin_number
 {
@@ -58,17 +72,20 @@ if echo "$add_iplist" | grep -q . ; then
   for i in $add_iplist; do
     while ( ip rule del from $i 2>/dev/null ) ; do
       echo "removing new ip $i from rules"
+      log "removing new ip $i from rules"
     done
     ## get rid of *all* old rules on that ip just in case they exist
-    ip rule add from $i table uplink`uplink_random_uplink_number` ; echo "added new ip $i to rules"
+    ip rule add from $i table uplink`uplink_random_uplink_number` ; echo "added new ip $i to rules" ; log "added new ip $i to rules"
   done
 fi
+
 
 remove_iplist=`diff $1.1 $1.2 | grep '^>' | cut -f4 -d" "`
 if echo "$remove_iplist" | grep -q . ; then
   for i in $remove_iplist; do
     while ( ip rule del from $i 2>/dev/null ) ; do
       echo "removing old ip $i from rules"
+      log "removing old ip $i from rules"
     done
     ## get rid of *all* old rules on that ip just in case they exist
   done
@@ -88,9 +105,12 @@ function manual_rule_insert {
   if [ ! -z "$ip_machine" ] ; then
     while ( ip rule del from $ip_machine 2>/dev/null ) ; do
       echo "removing $ip_machine ($machinename) from rules"
+      log "removing $ip_machine ($machinename) from rules"
     done
 
     ip rule add from $ip_machine table $uplink prio $priority
+    echo "adding rule from $ip_machine table $uplink prio $priority"
+    log "adding rule from $ip_machine table $uplink prio $priority"
   fi
 }
 
@@ -107,3 +127,11 @@ ip rule show
 ip route flush cache
 
 echo "done rules and flushing cache"
+
+
+log "------------------------------------------"
+log "dnsmasq leases.1 is now :"
+while read line; do log "$line"; done < $1.1
+log "dnsmasq leases.2 is now :"
+while read line; do log "$line"; done < $1.2
+log "------------------------------------------"
