@@ -1,11 +1,13 @@
 #!/bin/sh
-set -x
-set -v
+#set -x
+#set -v
 
 ## dynamic rules for machines on lan decide what uplink they will use when leases file changes
 ## uses incrontab entry: /full/path/to/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /etc/network/if-up.d/rulerunner $@
 
-logon=1
+logon=0
+## logon=1 switches logging on, logon=0 switches it off
+
 log ()
 { if [[ "${logon}" == "1" ]] ;
   then echo "$1" >> /var/log/muggles/rulerunner.log
@@ -16,6 +18,10 @@ log ()
 log "############`date`:#################"
 log "dnsmasq leases at: $1 are now :"
 while read line; do log "$line"; done < $1
+
+log "rules:"
+ip rule show | grep uplink | while read line; do log "$line"; done
+
 log "------------------------------------------"
 log "dnsmasq leases.1 is about to change from :"
 while read line; do log "$line"; done < $1.1
@@ -35,18 +41,31 @@ lastinterface=`ip link show | sed -e 's/[0-9][0-9]*: \(eth[0-9][0-9]*\): <BROADC
 ## whenever lease changes:
 ##   incron waits until this script ($0) is done (IN_NO_LOOP)
 ##   leasesfile may still change before we can read it (so be atomic, and copy canonical leasefile, and work with leasefile copies)
-##   to go through leases (in copies), find ips that have been added from last time with a diff
-##   purge rules for that ip for all tables
-##   add rule for a table (randomly, or rr style)
+##   go through leases (in copies)
+##       find lease line changes from last time with a diff
+##        if it is only the lease time field that has changed, and the rest of the lease entry is the same, do no rule changes
+##        else if an old ip address no longer exists, purge rules for that ip for all tables
+##        else if a new ip address exists, ( purge rules for that ip for all tables first) and  add rule for a table (randomly, or rr style)
+##   done
+
+## with the above algorithm we cover these (exhaustive) cases:
+## 1. a machine signs off its lease? Then lease line vanishes. Action: purge rules for that ip.
+## 2. a machine disconnects without signing off? Then lease line stays until lease expiry time (ip stays), rules stay unchanged for that lease ip. Action: do nothing to rules.
+##       If machine rejoins before lease expiry time, lease expiry time field (ip stays), rules stay unchanged for that lease ip. Action: do nothing to rules.
+##       If machine stays disconnected at lease expiry time, lease line vanishes (ip vanishes). Action: purge rules for that lease ip.
+## 3. a machine stays connected and refreshes its lease? Then lease expiry time field changes (ip stays). Action: do nothing to rules.
+## 4. a new machine comes in? Then get a new lease line entry, new ip (guaranteed by dnsmasq to be non-conflicting for a genuinely new machine). Action: add rule for that ip.
 
 
 ## $1 = fullpath of dnsmasq.leases passed by incron
 filebasename=`basename "$1"`
 if echo "$filebasename" | grep -q . ; then
       if [ -e $1.1 ] ; then cp $1.1 $1.2 ; fi
-      if [ -e $1 ] ; then cp $1 $1.1 ; fi
+      if [ -e $1 ] ; then cut -f2-4 -d" " $1 | sort > $1.1 ; fi
 fi
 ## atomic, and secure
+## get rid of epoch time field for algorithm purposes
+
 
 function uplink_roundrobin_number
 {
@@ -67,7 +86,7 @@ uplink_rand=$(( RANDOM%NUMBER_OF_UPLINKS +1 ))
 echo $uplink_rand
 }
 
-add_iplist=`diff $1.1 $1.2 | grep '^<' | cut -f4 -d" "`
+add_iplist=`diff $1.1 $1.2 | grep '^<' | cut -f3 -d" "`
 if echo "$add_iplist" | grep -q . ; then
   for i in $add_iplist; do
     while ( ip rule del from $i 2>/dev/null ) ; do
@@ -80,7 +99,7 @@ if echo "$add_iplist" | grep -q . ; then
 fi
 
 
-remove_iplist=`diff $1.1 $1.2 | grep '^>' | cut -f4 -d" "`
+remove_iplist=`diff $1.1 $1.2 | grep '^>' | cut -f3 -d" "`
 if echo "$remove_iplist" | grep -q . ; then
   for i in $remove_iplist; do
     while ( ip rule del from $i 2>/dev/null ) ; do
@@ -135,3 +154,5 @@ while read line; do log "$line"; done < $1.1
 log "dnsmasq leases.2 is now :"
 while read line; do log "$line"; done < $1.2
 log "------------------------------------------"
+log "rules:"
+ip rule show | grep uplink | while read line; do log "$line"; done
