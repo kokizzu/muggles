@@ -23,7 +23,8 @@ if [ "${IFACE}" == "eth0" ] ; then
   iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
   iptables -A INPUT -m state --state NEW -i eth0 -j ACCEPT
 
-  iptables -t nat -A POSTROUTING -j MASQUERADE
+  #iptables -t nat -A POSTROUTING -j MASQUERADE
+  #don't set this - it would masq forward chain too.
   
   #if squid is running need this line
   #iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
@@ -31,7 +32,7 @@ if [ "${IFACE}" == "eth0" ] ; then
   
   echo 1 > /proc/sys/net/ipv4/ip_forward
   
-  echo "done masquerading and iptables for eth0"
+  echo "enabled forwarding iptables for eth0"
   
   # since we can't do this in interfaces may as well do the following here:
   
@@ -46,21 +47,27 @@ fi
 
 
 if [[ "${IFACE}" =~ eth[1-9][0-9]* ]] ; then
-  #Allow established connections, and those not coming from the outside
+  #Allow established connections, from the outside to lan
   iptables -A FORWARD -i ${IFACE} -o eth0 -m state --state ESTABLISHED,RELATED -j ACCEPT
   
   # Allow outgoing connections from the LAN side.
   iptables -A FORWARD -i eth0 -o ${IFACE} -j ACCEPT
   
-  #don't allow outside connections to LAN
+  #don't forward outside connections to LAN (masq handles that)
   iptables -A FORWARD -i ${IFACE} -o eth0 -j REJECT
+
+  # masq connections for the route to do with that interface
+  iptables -t nat -A POSTROUTING -o ${IFACE} -j MASQUERADE
   
-  ##don't allow outsiders to access web interface etc on gateway (using gateway ips, 123.456.789.10 etc)
-  ## if [[ "${IFACE}" == eth1 ]] ; then iptables -A INPUT -i ${IFACE} -d 123.456.789.10 -m multiport -p tcp --destination-ports 80,111 -j REJECT ; fi
-  ## if [[ "${IFACE}" == eth2 ]] ; then iptables -A INPUT -i ${IFACE} -d 123.456.789.11 -m multiport -p tcp --destination-ports 80,111 -j REJECT ; fi
-  ## if [[ "${IFACE}" == eth3 ]] ; then iptables -A INPUT -i ${IFACE} -d 123.456.789.12 -m multiport -p tcp --destination-ports 80,111 -j REJECT ; fi
-  
-  #finally, don't allow outside connections to interface at all
-  #iptables -A INPUT -i ${IFACE} -j REJECT
+  ## we assume one interface per ip
+  interfaceip=`ip -4 -o addr show dev ${IFACE} | sed -n 's/^.*inet \(.*\)\/.*$/\1/p'`
+  ##don't allow people on internet to access web interface or dns on gateway (using gateway interfaceip)
+  iptables -A INPUT -i ${IFACE} -d $interfaceip -m multiport -p tcp --destination-ports 80,53 -j REJECT --reject-with tcp-reset
+  iptables -A INPUT -i ${IFACE} -d $interfaceip -m multiport -p udp --destination-ports 80,53 -j DROP
+ 
+  ## finally, don't allow outside connections to interface at all
+  ##    you probably want to accept ssh from outside first before you activate this. Maybe do the last one as a policy
+  ##   iptables -A INPUT -i ${IFACE} -d $interfaceip -p tcp --destination-port 22 -j ACCEPT
+  ## iptables -A INPUT -i ${IFACE} -j REJECT
 fi
 
