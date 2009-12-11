@@ -92,10 +92,10 @@ package_install etc/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf
 
 
 ## /usr/local/sbin
-
 package_install usr/local/sbin/masq_ipconf /usr/local/sbin/masq_ipconf
 package_install usr/local/sbin/pinglogger /usr/local/sbin/pinglogger
 package_install usr/local/sbin/rulerunner /usr/local/sbin/rulerunner
+package_install usr/local/sbin/defaultrouting /usr/local/sbin/defaultrouting
 
 ## /usr/lib/cgi-bin
 
