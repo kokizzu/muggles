@@ -16,6 +16,9 @@ if [ "${IFACE}" == "eth0" ] ; then
   iptables -t mangle -F
   iptables -X
 
+  ## policy
+  iptables -P INPUT -j REJECT
+
   # Always accept loopback traffic
   iptables -A INPUT -i lo -j ACCEPT
   iptables -A OUTPUT -o lo -j ACCEPT
@@ -27,7 +30,7 @@ if [ "${IFACE}" == "eth0" ] ; then
   #don't set this - it would masq every interface to every other one. Instead, do it per output interface 
   
   #if squid is running need this line
-  #iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
+  iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
   #end if squid is running need this line
 
   echo 1 > /proc/sys/net/ipv4/ip_forward &&  echo "enabled forwarding iptables"
@@ -69,7 +72,5 @@ if [[ "${IFACE}" =~ eth[1-9][0-9]* ]] ; then
   ## accept ssh (maybe add rate limiter to stop brute-force?)
   iptables -A INPUT -i ${IFACE} -d $interfaceip -p tcp --destination-port 22 -j ACCEPT
 
-  ## policy
-  iptables -P INPUT -i ${IFACE} -j REJECT
 fi
 
