@@ -17,7 +17,7 @@ if [ "${IFACE}" == "eth0" ] ; then
   iptables -X
 
   ## policy
-  iptables -P INPUT -j REJECT
+  iptables -P INPUT DROP
 
   # Always accept loopback traffic
   iptables -A INPUT -i lo -j ACCEPT
