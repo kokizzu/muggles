@@ -127,7 +127,7 @@ package_install var/www/switched.html /var/www/switched.html
 ## add these lines
 
 ARRAY=(\
-'@reboot       /usr/sbin/ntpdate-debian' \
+'@reboot       /etc/init.d/openntpd stop && /usr/sbin/ntpdate-debian && /etc/init.d/openntpd start' \
 '@reboot       >/var/lib/misc/dnsmasq.leases.1 ; /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases' \
 '@reboot       for i in `grep -v ^# /etc/muggles/interfaces | grep .` ; do /usr/local/sbin/masq_ipconf $i ; done' \
 '@reboot       /usr/local/sbin/pinglogger' \
