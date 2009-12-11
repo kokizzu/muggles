@@ -65,40 +65,6 @@ http://code.google.com/p/muggles/wiki/PageName#Not-so-Quickstart_(for_if_you_wan
 some loose ends, notes which will be migrated to the wiki url above:
 
 
-12. squid
-
-For transparent web proxy caching with lenny's squid 2.7stable3 :
-
-In (network section of) /etc/squid.conf set:
-
-  http_port 127.0.0.1:3128 transparent
-  http_port 192.168.0.12:3128 transparent
-  visible_hostname lennygwbox.local
-
-To make visible_hostname work add lennygwbox.local in /etc/hosts to the line 127.0.0.1 like:
-  127.0.0.1       localhost       lennygwbox.local 
-
-In (acl section of) /etc/squid.conf set:
-
-  acl our_networks src 192.168.0.0/24
-  http_access allow our_networks
- 
-and modify /usr/local/sbin/ipmasq to have:
-
-  iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
-
-(remove # to enable)
-
-To stop squid:
-   lennygwbox:~# /etc/init.d/squid stop && iptables -t nat -D PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
-   Stopping Squid HTTP proxy: squid Waiting.....................done.
-
-To start it up again:
-
-   lennygwbox:~# /etc/init.d/squid start && iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
-   Starting Squid HTTP proxy: squid.
-
-
 
 
 14 logrotate

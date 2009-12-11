@@ -15,6 +15,9 @@ remote_pings_log="/var/log/muggles/remote_pings.log"
 ping_timeout=5 ;  ping_interval=2 ;  ping_count=10
 #ping_timeout=1 ;  ping_interval=1 ;  ping_count=1
 
+looptime=10
+## amount of sleeptime used by defaultrouting script before it checks again if the default route connectivity still works 
+
 
 ## a list of remote (far) sites to ping per interface
 
@@ -23,7 +26,6 @@ remotepingname1="yahoo.com"
 
 remotepinguplink2=74.125.45.100
 remotepingname2="google.com"
-
 
 ## end of configurables
 ########################
@@ -42,6 +44,7 @@ do
   nearip=(`mtr -4 -a $interfaceip --no-dns -c1 -r $remotepinguplink |  grep -m$number_of_hops_upstream -o "[[:digit:]]\{1,3\}\.[[:digit:]]\{1,3\}\.[[:digit:]]\{1,3\}\.[[:digit:]]\{1,3\}" | tail -n1`)
   ## grep -m<N> means N hops (resolved ones) upstream
 
+  eval `echo interfacip${i}=$interfaceip`
   eval `echo nearip${i}=$nearip`
 done
 

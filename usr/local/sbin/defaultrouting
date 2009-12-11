@@ -1,0 +1,43 @@
+#!/bin/bash
+
+#set -x -v
+
+
+PATH=/sbin:$PATH
+
+source /etc/muggles/pinglogger_config
+
+looptime=2
+#get it from /etc/muggles/pinglogger ?
+
+while sleep $looptime
+
+do
+
+
+
+current_default_route=$(ip route show | grep default | cut -f3 -d" ")
+
+interface=$(ip route get $current_default_route | grep $current_default_route | cut -f3 -d" ")
+
+current_interface_number=$( echo $interface | sed 's/eth//'  )
+## only works for eth1,2,3 etc
+
+current_remote_ping=$(eval echo '$'remotepinguplink${current_interface_number})
+
+if  ping -c2 -w2 $current_remote_ping 2>&1 > /dev/null ; then
+     :
+  else
+    pinging_remote=0
+    i=0
+    while (( ! $pinging_remote ))  ; do
+       i=$(( ( $i%$NUMBER_OF_UPLINKS )  +1 ))
+       ip route del default
+       new_route=$( eval ip route show table uplink${i} | cut -f3 -d" ")
+       ip route add default via $new_route   
+       current_remote_ping=$(eval echo '$'remotepinguplink${i})
+       ping -c2 -w2 $current_remote_ping 2>&1 > /dev/null  && pinging_remote=1
+   done
+fi
+
+done

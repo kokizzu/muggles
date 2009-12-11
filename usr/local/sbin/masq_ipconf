@@ -24,25 +24,26 @@ if [ "${IFACE}" == "eth0" ] ; then
   iptables -A INPUT -m state --state NEW -i eth0 -j ACCEPT
 
   #iptables -t nat -A POSTROUTING -j MASQUERADE
-  #don't set this - it would masq forward chain too.
+  #don't set this - it would masq every interface to every other one. Instead, do it per output interface 
   
   #if squid is running need this line
   #iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
   #end if squid is running need this line
-  
-  echo 1 > /proc/sys/net/ipv4/ip_forward
-  
-  echo "enabled forwarding iptables for eth0"
-  
-  # since we can't do this in interfaces may as well do the following here:
-  
-  echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter
-  ## 1="on" means, if current packet's return path is through another interface than this one, then drop current packet. (Done by looking at source ip from current packet, and figuring if the route to that source goes via current interface). Only really need it off for bonding interfaces, surely? For single uplinks it is irrelevant. (remember to ip route flush cache when you change the setting)
-  
-  echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore
-  ## set it to 0 and any interface will claim the ip on arp, set it to 1 and only the interface with the ip responds.
-  
-  echo "done rp_filter off and arp_ignore on"
+
+  echo 1 > /proc/sys/net/ipv4/ip_forward &&  echo "enabled forwarding iptables"
+  echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore && echo "enable arp_ignore on all interfaces"
+  echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter && echo "enabled rp_filter on all interfaces"
+
+  ## or permanently set above in /etc/sysctl.conf with:
+  ##   net.ipv4.ip_forward=1 
+  ##   net.ipv4.conf.all.arp_ignore = 1 
+  ##   net.ipv4.conf.all.rp_filter = 1
+
+  ## arp_ignore=0 means any interface will claim the ip on arp, 1 means only the interface with the ip responds.
+  ## rp_filter default is 0. 1 means, if current packet's return path is through another interface than this one, then drop current packet.
+  ##   (Done by looking at source ip from current packet, and figuring if the route to that source goes via current interface).
+  ##   Only really need it off for bonding interfaces, surely? For single uplinks it is irrelevant. (remember to ip route flush cache when you change the setting)
+ 
 fi
 
 
@@ -64,10 +65,11 @@ if [[ "${IFACE}" =~ eth[1-9][0-9]* ]] ; then
   ##don't allow people on internet to access web interface or dns on gateway (using gateway interfaceip)
   iptables -A INPUT -i ${IFACE} -d $interfaceip -m multiport -p tcp --destination-ports 80,53 -j REJECT --reject-with tcp-reset
   iptables -A INPUT -i ${IFACE} -d $interfaceip -m multiport -p udp --destination-ports 80,53 -j DROP
- 
-  ## finally, don't allow outside connections to interface at all
-  ##    you probably want to accept ssh from outside first before you activate this. Maybe do the last one as a policy
-  ##   iptables -A INPUT -i ${IFACE} -d $interfaceip -p tcp --destination-port 22 -j ACCEPT
-  ## iptables -A INPUT -i ${IFACE} -j REJECT
+
+  ## accept ssh (maybe add rate limiter to stop brute-force?)
+  iptables -A INPUT -i ${IFACE} -d $interfaceip -p tcp --destination-port 22 -j ACCEPT
+
+  ## policy
+  iptables -P INPUT -i ${IFACE} -j REJECT
 fi
 
