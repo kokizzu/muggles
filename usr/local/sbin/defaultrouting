@@ -1,20 +1,12 @@
 #!/bin/bash
 
 #set -x -v
-
-
 PATH=/sbin:$PATH
 
 source /etc/muggles/pinglogger_config
 
-looptime=2
-#get it from /etc/muggles/pinglogger ?
-
 while sleep $looptime
-
 do
-
-
 
 current_default_route=$(ip route show | grep default | cut -f3 -d" ")
 
