@@ -45,6 +45,9 @@ do
   ## grep -m<N> means N hops (resolved ones) upstream
 
   eval `echo interfacip${i}=$interfaceip`
+  if [[ $nearip = "" ]] ; then
+    nearip=$interfaceip
+  fi
   eval `echo nearip${i}=$nearip`
 done
 
