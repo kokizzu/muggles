@@ -29,9 +29,8 @@ if [ "${IFACE}" == "eth0" ] ; then
   #iptables -t nat -A POSTROUTING -j MASQUERADE
   #don't set this - it would masq every interface to every other one. Instead, do it per output interface 
   
-  #if squid is running need this line
-  iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
-  #end if squid is running need this line
+  #redirect lan web traffic to port 3128 if squid is running
+  ( pgrep -u proxy ) 2>&1>/dev/null && iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128
 
   echo 1 > /proc/sys/net/ipv4/ip_forward &&  echo "enabled forwarding iptables"
   echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore && echo "enable arp_ignore on all interfaces"
