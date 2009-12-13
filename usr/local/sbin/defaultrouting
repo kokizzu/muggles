@@ -7,7 +7,8 @@ source /etc/muggles/pinglogger_config
 
 
 ## set up routing to force pings only via their interfaces from this machine (does not apply to lan machines)
-for i in `seq 1 $NUMBER_OF_UPLINKS` ; do
+
+for ((i=1; i<=$NUMBER_OF_UPLINKS; i++)) ; do
   gateway_i=$(ip route show dev eth$i table uplink$i | grep ^default | cut -f3 -d" ")
   remote_ping_uplink_i=$(eval echo '$'remotepinguplink${i})
   ip route add $remote_ping_uplink_i via $gateway_i

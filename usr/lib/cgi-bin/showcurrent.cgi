@@ -53,7 +53,7 @@ secupdatesfile="/var/log/muggles/secupdates"
 if [[ -s "$secupdatesfile" ]] ; then security_updates=`echo "updated security packages available: "; cat /var/log/muggles/secupdates` ; fi
 
 
-for k in `seq $NUMBER_OF_UPLINKS` ; do
+for ((k=1; k<=$NUMBER_OF_UPLINKS; k++)) ; do
 
   ##get names for each uplink, eg:
   ##uplink1users=`ip -r rule show | grep uplink1 | cut -f2 -d' '`
@@ -193,7 +193,7 @@ $security_updates
 TOPBIT
 
 
-for k in `seq $NUMBER_OF_UPLINKS` ; do
+for ((k=1; k<=$NUMBER_OF_UPLINKS; k++)) ; do
 cat<<SHOWCURRENT
 <td> 
 <b>

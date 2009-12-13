@@ -36,7 +36,7 @@ remotepingname2="google.com"
 
 NUMBER_OF_UPLINKS=`ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x`
 
-for i in `seq 1 $NUMBER_OF_UPLINKS`
+for ((i=1; i<=$NUMBER_OF_UPLINKS; i++))
 do
   interfaceip=`ip -4 -o addr show dev eth${i} | sed -n 's/^.*inet \(.*\)\/.*$/\1/p'`
 
