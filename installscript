@@ -3,30 +3,35 @@
 set -x -v
 
 if [[ ! `cat /etc/issue` =~ "Debian GNU/Linux 5.0" ]] ; then echo "This doesn't look like Lenny. Stopping." && exit 0 ; fi
-if [[ $PWD == "/" ]] ; then echo "Do the install from the source directory. Stopping" && exit 0  ; fi
+if [[ $PWD == "/" ]] ; then echo "Do the install from the source directory. Fix and run again." && exit 0  ; fi
 
-for i in incron iproute dnsmasq lighttpd sudo nmap logrotate bandwidthd
-
-# to add: vnstat squid
+for i in incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid
 
 do 
-  if [[ ! `( dpkg -s $i | grep ^Status )` =~ ^"Status: install ok installed" ]] ; then echo "Install $i first. Stopping." && exit 0  ; fi
+  if [[ ! `( dpkg -s $i | grep ^Status )` =~ ^"Status: install ok installed" ]] ; then echo "Install $i first. Fix and run again." && exit 0  ; fi
 done
 
+## for squid at least:
+( grep ^127.0.0.1 /etc/hosts | awk '{print $3}' | grep \. ) || echo "Need an fqdn in /etc/hosts. Run again after fixing.  Eg: modify: '127.0.0.1 localhost' ---> '127.0.0.1 localhost lennygwbox.local'" && exit 0
+
+
+## admonition to adjust /etc/network/interfaces
 echo "
 YOU ARE UNLIKELY TO BE ABLE TO CONNECT TO YOUR EXISTING SYSTEMS 
 AFTER THE DEFAULT INSTALLATION unless you adjust the network 
-settings to suit your own network situation after installation, 
-(before reboot in any case).
+settings in /etc/network/interfaces.
 
-This muggles installation script is meant for a clean lenny 
-system. It will set default working interface addresses that are 
-consistent, but these settings are unlikely to suit your network.
+This installation script is meant for a clean lenny system. It
+will set default working interface addresses that are consistent,
+but these settings are unlikely to suit your network.
+
+This installer may not follow the debian policy manual very well.
+Making a real debian package out of this is the direction further
+development is intended.
 
 The README file gives exact details on how a clean lenny is 
-changed to a default muggles installation. Read it to know how 
-to adjust the default muggles installation settings to suit your 
-network.
+changed to a default muggles installation. Read it to fix a
+broken installation.
 
 [press enter to continue]
 "
@@ -62,16 +67,22 @@ if [[ -e $package_version ]] ; then
    if [[ -e $installed_version ]] ; then
       if [[ -n `diff $installed_version $package_version` ]] ; then
          echo "$installed_version which is already installed is going to be changed to the version in the package version. Change? [y]" ; read yesno
-         if [[ $yesno =~ (n|N) ]] ; then ( echo "stopped" && exit 0 ) ; fi 
-         ( cp $installed_version "$installed_version"_"$ts" ) && echo "made a backup of the already installed version to ""$installed_version"'_'"$ts"
-         ( cp $package_version $installed_version ) && echo "overwrote already installed version $installed_version with package version $package_version"
+         if [[ $yesno =~ (n|N) ]] ; then
+           echo "Keeping $installed_version. This may break things so the installation will not work."
+         else
+           ( cp $installed_version "$installed_version"_"$ts" ) && echo "made a backup of the already installed version to ""$installed_version"'_'"$ts"
+           ( cp $package_version $installed_version ) && echo "overwrote already installed version $installed_version with package version $package_version"
+         fi
       else
           echo "$installed_version and $package_version are the same, so changing nothing" 
       fi
    else
-      echo "Warning: no default already-installed version of $installed_version found. Create? [y]"; read yesno
-      if [[ $yesno =~ (n|N) ]] ; then ( echo "stopped" && exit 0 ) ; fi 
-      ( cp $package_version $installed_version ) && echo "created $installed_version"
+      echo "No default already-installed version of $installed_version found. Create? [y]"; read yesno
+      if [[ $yesno =~ (n|N) ]] ; then
+        echo "Not installing $package_version. This may break things so the installation will not work"
+      else
+        ( cp $package_version $installed_version ) && echo "created $installed_version"
+      fi 
    fi
 else
    echo "No $package_version (package version) file found. So changing nothing."
@@ -82,13 +93,17 @@ fi
 
 
 ## /etc/
+package_install etc/network/interfaces /etc/network/interfaces
+
+## later, with debconf: user changes interface values
+##  then have to run a lot of stuff again including some crontab entries 
 
 package_install etc/dnsmasq.conf /etc/dnsmasq.conf 
 package_install etc/muggles/interfaces /etc/muggles/interfaces
 package_install etc/muggles/pinglogger_config /etc/muggles/pinglogger_config
 ## cp etc/muggles/* /etc/muggles/
-package_install etc/network/interfaces /etc/network/interfaces
 package_install etc/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf
+package_install etc/squid/squid.conf /etc/squid/squid.conf
 
 
 ## /usr/local/sbin
@@ -207,14 +222,67 @@ done
 rm /etc/sudoers.tmp
 
 
-## bandwidthd
 
-if [[ -L /var/www/bandwidthd ]] ; then echo "have a symlink bandwidthd already so changing nothing"
-                                  else ln -s /var/lib/bandwidthd/htdocs/ /var/www/bandwidthd && echo 'made symlink /var/lib/bandwidthd/htdocs -> /var/www/bandwidthd'
+## bandwidthd
+if [[ -e /etc/bandwidthd/bandwidthd.conf ]] ;
+  if [[ -L /var/www/bandwidthd ]] ; then echo "have a symlink bandwidthd already so changing nothing"
+                                    else ln -s /var/lib/bandwidthd/htdocs/ /var/www/bandwidthd && echo 'made symlink /var/lib/bandwidthd/htdocs -> /var/www/bandwidthd'
+  fi
 fi
 
 
 
+## squid
+
+## when network interfaces is set up (package install section) I should restart squid
+## after that squid config routine here will configure ok
+
+
+
+visname=$( grep ^127.0.0.1 /etc/hosts | awk '{print $3}' | grep \. )                                                                                                                                                                                        
+if [[ -e /etc/squid/squid.conf ]] ;
+     then function squidconf_modify {
+     squidconflinestart="$1" ; insertionpointstring="$2"
+     ( grep -v ^# /etc/squid/squid.conf | grep ^"$squidconflinestart" ) 2>&1 > /dev/null || \
+     sed -i "s/^\($insertionpointstring$\)/\1\n$squidconflinestart\n/" /etc/squid/squid.conf
+     }
+
+
+     ournetwork=$(ip route show dev eth0 | awk '{print $1}' | sed 's/\//\\\//' )
+     squidconf_modify "acl our_networks src $ournetwork" 'http_access allow localhost' 
+     squidconf_modify "http_access allow our_networks" "acl our_networks src $ournetwork"
+
+
+
+     squidconf_modify "http_port 127.0.0.1:3128 transparent" "http_port 3128"
+     sed -i "s/^\(http_port 3128$\)/#\1/" /etc/squid/squid.conf
+
+
+     eth0ip=$(ip -4 -o addr show dev eth0 | sed -n 's/^.*inet \(.*\)\/.*$/\1/p')
+
+     squidconf_modify "http_port $eth0ip:3128 transparent" "http_port 127.0.0.1:3128 transparent"
+     squidconf_modify "visible_hostname $visname" "http_port $eth0ip:3128 transparent"
+fi
+
+## the above patches original squid.conf like this
+
+## < acl our_networks src 192.168.0.0/24
+## < http_access allow our_networks
+## < 
+
+## < #http_port 3128
+## < http_port 127.0.0.1:3128 transparent
+## < http_port 192.168.0.12:3128 transparent
+## < visible_hostname lennygwbox.local
+## < 
+## ---
+## > http_port 3128
+## 
+
+
+## vnstat
+## Gather vnstat data for interfaces except eth0. (initializes database gathering if it isn't already in place. Updates if it is already there)
+for i in `grep -v ^# /etc/muggles/interfaces | grep . | grep -v eth0` ; do vnstat -u -i $i ; echo "vnstat running for $i" ; done
 
 
 ) | column -s, -t
