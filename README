@@ -32,11 +32,15 @@ The install
 
 The 8-fold path to a higher uplink state...
 
-1. Install lenny with a minimal bunch of packages (no x needed).(With the debian-503-i386-netinst.iso you can leave network unconfigured. And when it prompts you for package selection right at the end, you can unselect "standard")
+1. Install lenny with a minimal bunch of packages (no x needed).
 
-2. aptitude install incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr
+    * With the debian-503-i386-netinst.iso, when it detects the network interfaces chose any one as the primary, but keep the interfaces physically disconnected. Let it try to dhcp and fail, then choose "do not configure network at this time". Kind of silly, but keeps it simple. 
 
-If you don't have them already, you will probably want to aptitude install openssh-client openssh-server. They are useful, but not necessary.
+    * When it prompts you for package selection near the end of the installation, you can drop the selection "standard" so that it is truly a minimal installation. 
+
+2. aptitude install incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr dnsutils
+
+    * If you don't have them already, you will probably want to aptitude install openssh-client openssh-server. They are useful extras, but not necessary. Go on, just install them too. 
 
 3. Unpack the tgz file in, say /root/muggles_source.
 

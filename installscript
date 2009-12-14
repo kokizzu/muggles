@@ -5,7 +5,7 @@
 if [[ ! `cat /etc/issue` =~ "Debian GNU/Linux 5.0" ]] ; then echo "This doesn't look like Lenny. Stopping." && exit 0 ; fi
 if [[ $PWD == "/" ]] ; then echo "Do the install from the source directory. Fix and run again." && exit 0  ; fi
 
-for i in incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr openssh-client openssh-server
+for i in incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr dnsutils openssh-client openssh-server
 ## openssh-client and openssh-server are not needed but very useful
 do 
   if [[ ! `( dpkg -s $i | grep ^Status )` =~ ^"Status: install ok installed" ]] ; then echo "Install $i first. Fix and run again." && exit 0  ; fi
@@ -39,7 +39,7 @@ broken installation.
 
 [press enter to continue]
 "
-## read
+read
 ## put a network config script in later (feed to muggles/interfaces?)
 #tar xvzf muggles.tgz
 
@@ -47,8 +47,8 @@ broken installation.
 
 
 
-(
-## matches column line at end, for pretty output
+###(
+## matches column line at end, for pretty output but you'll have to disable read prompts for all code between brackets
 
 
 function mkdir_if_not_there {
@@ -172,7 +172,7 @@ crontab_add
 fi
 done
 
-( crontab -l | tail -1 | grep -v . ) || ( echo "cron needs a blank line at end" 
+( crontab -l | tail -1 | grep -v . ) || ( echo "cron needs a blank line at end, so adding it" 
    ( crontab -l ; echo ) | crontab -
 )
 
@@ -293,4 +293,5 @@ fi
 for i in `grep -v ^# /etc/muggles/interfaces | grep . | grep -v eth0` ; do vnstat -u -i $i ; echo "vnstat running for $i" ; done
 
 
-) | column -s, -t
+##### ) | column -s, -t
+## matches a bracket at the begining, but you'll have to disable read prompts..
