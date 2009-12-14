@@ -1,19 +1,23 @@
 #!/bin/bash
 
-set -x -v
+#set -x -v
 
 if [[ ! `cat /etc/issue` =~ "Debian GNU/Linux 5.0" ]] ; then echo "This doesn't look like Lenny. Stopping." && exit 0 ; fi
 if [[ $PWD == "/" ]] ; then echo "Do the install from the source directory. Fix and run again." && exit 0  ; fi
 
-for i in incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid
-
+for i in incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr openssh-client openssh-server
+## openssh-client and openssh-server are not needed but very useful
 do 
   if [[ ! `( dpkg -s $i | grep ^Status )` =~ ^"Status: install ok installed" ]] ; then echo "Install $i first. Fix and run again." && exit 0  ; fi
 done
 
 ## for squid at least:
-( grep ^127.0.0.1 /etc/hosts | awk '{print $3}' | grep \. ) || echo "Need an fqdn in /etc/hosts. Run again after fixing.  Eg: modify: '127.0.0.1 localhost' ---> '127.0.0.1 localhost lennygwbox.local'" && exit 0
-
+( grep ^127.0.0.1 /etc/hosts | awk '{print $3}' | grep -q \. ) && {
+  echo "Need an fqdn in /etc/hosts"
+  echo 'Eg: modify: 127.0.0.1 localhost ---> 127.0.0.1 localhost '`hostname`'.local'
+  echo "Run again after fixing."
+  exit 0
+}
 
 ## admonition to adjust /etc/network/interfaces
 echo "
@@ -103,6 +107,8 @@ package_install etc/muggles/interfaces /etc/muggles/interfaces
 package_install etc/muggles/pinglogger_config /etc/muggles/pinglogger_config
 ## cp etc/muggles/* /etc/muggles/
 package_install etc/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf
+lighty-enable-mod cgi ; /etc/init.d/lighttpd restart
+
 package_install etc/squid/squid.conf /etc/squid/squid.conf
 
 
@@ -174,6 +180,8 @@ done
 
 ## incron
 
+( grep -q ^root$ /etc/incron.allow ) || { echo root >> /etc/incron.allow ; }
+
 ## need to check preexistence
 
 if [[ `incrontab -l` =~ '/var/lib/misc/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /usr/local/sbin/rulerunner $@' ]]
@@ -182,7 +190,7 @@ if [[ `incrontab -l` =~ '/var/lib/misc/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /usr/
    echo "installing line into incrontab"
    ( incrontab -l
 cat<<incrontab_add
-/var/lib/misc/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /usr/local/sbin/rulerunner $@
+/var/lib/misc/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /usr/local/sbin/rulerunner \$@
 incrontab_add
 ) | incrontab -
 fi
@@ -224,7 +232,7 @@ rm /etc/sudoers.tmp
 
 
 ## bandwidthd
-if [[ -e /etc/bandwidthd/bandwidthd.conf ]] ;
+if [[ -e /etc/bandwidthd/bandwidthd.conf ]] ; then
   if [[ -L /var/www/bandwidthd ]] ; then echo "have a symlink bandwidthd already so changing nothing"
                                     else ln -s /var/lib/bandwidthd/htdocs/ /var/www/bandwidthd && echo 'made symlink /var/lib/bandwidthd/htdocs -> /var/www/bandwidthd'
   fi
