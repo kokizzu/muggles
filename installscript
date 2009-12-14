@@ -12,7 +12,7 @@ do
 done
 
 ## for squid at least:
-( grep ^127.0.0.1 /etc/hosts | awk '{print $3}' | grep -q \. ) && {
+( grep ^127.0.0.1 /etc/hosts | awk '{print $3}' | grep -q \. ) || {
   echo "Need an fqdn in /etc/hosts"
   echo 'Eg: modify: 127.0.0.1 localhost ---> 127.0.0.1 localhost '`hostname`'.local'
   echo "Run again after fixing."
@@ -70,23 +70,19 @@ installed_version="$2"
 if [[ -e $package_version ]] ; then
    if [[ -e $installed_version ]] ; then
       if [[ -n `diff $installed_version $package_version` ]] ; then
-         echo "$installed_version which is already installed is going to be changed to the version in the package version. Change? [y]" ; read yesno
+         echo "$installed_version which is already installed is going to be changed to the muggles version. Change? [y]" ; read yesno
          if [[ $yesno =~ (n|N) ]] ; then
            echo "Keeping $installed_version. This may break things so the installation will not work."
          else
            ( cp $installed_version "$installed_version"_"$ts" ) && echo "made a backup of the already installed version to ""$installed_version"'_'"$ts"
-           ( cp $package_version $installed_version ) && echo "overwrote already installed version $installed_version with package version $package_version"
+           ( cp $package_version $installed_version ) && echo "overwrote already installed version $installed_version with muggles version $package_version"
          fi
       else
           echo "$installed_version and $package_version are the same, so changing nothing" 
       fi
    else
-      echo "No default already-installed version of $installed_version found. Create? [y]"; read yesno
-      if [[ $yesno =~ (n|N) ]] ; then
-        echo "Not installing $package_version. This may break things so the installation will not work"
-      else
+      echo "No default already-installed version of $installed_version found. Creating..."
         ( cp $package_version $installed_version ) && echo "created $installed_version"
-      fi 
    fi
 else
    echo "No $package_version (package version) file found. So changing nothing."
