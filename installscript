@@ -21,13 +21,26 @@ done
 
 ## admonition to adjust /etc/network/interfaces
 echo "
-YOU ARE UNLIKELY TO BE ABLE TO CONNECT TO YOUR EXISTING SYSTEMS 
-AFTER THE DEFAULT INSTALLATION unless you adjust the network 
-settings in /etc/network/interfaces.
+YOU MUST have eth0 active and set to the LAN IP you will be using
+if you want squid configuration to be done correctly during
+installation. Otherwise you will have to go through the muggles
+squid documentation to correct the guesses made during installation.
+Eg: if your IP on the LAN is 192.168.0.12, activate it with:
+  ifconfig eth0 192.168.0.12 up
+    or
+  ip addr add 192.168.0.12/24 dev eth0
+
+
+YOU MUST adjust the network settings in /etc/network/interfaces
+to set it up for your own network layout. Unless your own network
+follows the default address values of muggles (see muggles test
+environment documentation). The adjusted values will take hold
+after reboot.
 
 This installation script is meant for a clean lenny system. It
 will set default working interface addresses that are consistent,
-but these settings are unlikely to suit your network.
+but these settings are unlikely to suit your network. The settings
+will take hold after reboot.
 
 This installer may not follow the debian policy manual very well.
 Making a real debian package out of this is the direction further
@@ -252,7 +265,7 @@ if [[ -e /etc/squid/squid.conf ]] ;
      }
 
 
-     ournetwork=$(ip route show dev eth0 | awk '{print $1}' | sed 's/\//\\\//' )
+     ournetwork=$(ip route show dev eth0 | head -1 | awk '{print $1}' | sed 's/\//\\\//' )
      squidconf_modify "acl our_networks src $ournetwork" 'http_access allow localhost' 
      squidconf_modify "http_access allow our_networks" "acl our_networks src $ournetwork"
 
@@ -291,3 +304,6 @@ for i in `grep -v ^# /etc/muggles/interfaces | grep . | grep -v eth0` ; do vnsta
 
 ##### ) | column -s, -t
 ## matches a bracket at the begining, but you'll have to disable read prompts..
+
+echo "Reboot now, and everything should probably just work"
+
