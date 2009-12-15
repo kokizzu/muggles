@@ -4,9 +4,15 @@
 
 ## dynamic rules for machines on lan decide what uplink they will use when leases file changes
 ## uses incrontab entry: /full/path/to/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /etc/network/if-up.d/rulerunner $@
+## which passes the path of dnsmasq.leases to $1
+
+dleases_path=$1
 
 logon=0
 ## logon=1 switches logging on, logon=0 switches it off
+
+## end of configuration options
+
 
 log ()
 { if [[ "${logon}" == "1" ]] ;
@@ -16,22 +22,37 @@ log ()
 }
 
 log "############`date`:#################"
-log "dnsmasq leases at: $1 are now :"
-while read line; do log "$line"; done < $1
+log "dnsmasq leases at: $dleases_path are now :"
+while read line; do log "$line"; done < $dleases_path
 
 log "rules:"
 ip rule show | grep uplink | while read line; do log "$line"; done
 
 log "------------------------------------------"
 log "dnsmasq leases.1 is about to change from :"
-while read line; do log "$line"; done < $1.1
+while read line; do log "$line"; done < $dleases_path.1
 log "dnsmasq leases.2 is about to change from :"
-while read line; do log "$line"; done < $1.2
+while read line; do log "$line"; done < $dleases_path.2
 log "------------------------------------------"
 
 
-lastinterface=`ip link show | sed -e 's/[0-9][0-9]*: \(eth[0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x`
+
+
+NUMBER_OF_UPLINKS=`ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x`
+lastinterface='eth'$NUMBER_OF_UPLINKS
 ## only works if interfaces used are eth...
+
+NUMBER_OF_RULES=`ip rule show | grep '^32[0-9]\{3\}' | grep 'lookup uplink' | wc -l`
+## idea - automatically add rules in range 32000 - 32765. Can add rules manually to space < 32000)
+
+
+
+
+
+
+
+
+
 
 ## routing defined in interfaces per table gives: 
 # roundrobin number? NUMBER_OF_UPLINKS=`ip route show table all | grep "^default via .*table uplink[1-9][0-9]*" | wc -l`
@@ -57,11 +78,10 @@ lastinterface=`ip link show | sed -e 's/[0-9][0-9]*: \(eth[0-9][0-9]*\): <BROADC
 ## 4. a new machine comes in? Then get a new lease line entry, new ip (guaranteed by dnsmasq to be non-conflicting for a genuinely new machine). Action: add rule for that ip.
 
 
-## $1 = fullpath of dnsmasq.leases passed by incron
-filebasename=`basename "$1"`
+filebasename=`basename "$dleases_path"`
 if echo "$filebasename" | grep -q . ; then
-      if [ -e $1.1 ] ; then cp $1.1 $1.2 ; fi
-      if [ -e $1 ] ; then cut -f2-4 -d" " $1 | sort > $1.1 ; fi
+      if [ -e $dleases_path.1 ] ; then cp $dleases_path.1 $dleases_path.2 ; fi
+      if [ -e $dleases_path ] ; then cut -f2-4 -d" " $dleases_path | sort > $dleases_path.1 ; fi
 fi
 ## atomic, and secure
 ## get rid of epoch time field for algorithm purposes
@@ -70,9 +90,6 @@ fi
 function uplink_roundrobin_number
 {
 ## defined in /etc/network/interfaces and /etc/iproute2/rt_tables  
-NUMBER_OF_UPLINKS=`ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x`
-NUMBER_OF_RULES=`ip rule show | grep '^32[0-9]\{3\}' | grep 'lookup uplink' | wc -l`
-## idea - automatically add rules in range 32000 - 32765. Can add rules manually to space < 32000)
 uplink_rr=$(( NUMBER_OF_RULES%NUMBER_OF_UPLINKS + 1 ))
 echo $uplink_rr
 }
@@ -81,12 +98,11 @@ echo $uplink_rr
 
 function uplink_random_uplink_number
 {
-NUMBER_OF_UPLINKS=`ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x`
 uplink_rand=$(( RANDOM%NUMBER_OF_UPLINKS +1 ))
 echo $uplink_rand
 }
 
-add_iplist=`diff $1.1 $1.2 | grep '^<' | cut -f3 -d" "`
+add_iplist=`diff $dleases_path.1 $dleases_path.2 | grep '^<' | cut -f3 -d" "`
 if echo "$add_iplist" | grep -q . ; then
   for i in $add_iplist; do
     while ( ip rule del from $i 2>/dev/null ) ; do
@@ -99,7 +115,7 @@ if echo "$add_iplist" | grep -q . ; then
 fi
 
 
-remove_iplist=`diff $1.1 $1.2 | grep '^>' | cut -f3 -d" "`
+remove_iplist=`diff $dleases_path.1 $dleases_path.2 | grep '^>' | cut -f3 -d" "`
 if echo "$remove_iplist" | grep -q . ; then
   for i in $remove_iplist; do
     while ( ip rule del from $i 2>/dev/null ) ; do
@@ -119,7 +135,7 @@ fi
 
 function manual_rule_insert {
   machinename=$1; uplink=$2 ; priority=$3
-  ip_machine=`cut -f3,4 -d" " /var/lib/misc/dnsmasq.leases | grep '$1$' | cut -f1 -d" "`
+  ip_machine=`cut -f3,4 -d" " $dleases_path | grep '$1$' | cut -f1 -d" "`
 
   if [ ! -z "$ip_machine" ] ; then
     while ( ip rule del from $ip_machine 2>/dev/null ) ; do
@@ -150,9 +166,9 @@ echo "done rules and flushing cache"
 
 log "------------------------------------------"
 log "dnsmasq leases.1 is now :"
-while read line; do log "$line"; done < $1.1
+while read line; do log "$line"; done < $dleases_path.1
 log "dnsmasq leases.2 is now :"
-while read line; do log "$line"; done < $1.2
+while read line; do log "$line"; done < $dleases_path.2
 log "------------------------------------------"
 log "rules:"
 ip rule show | grep uplink | while read line; do log "$line"; done
