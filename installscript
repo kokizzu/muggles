@@ -278,6 +278,8 @@ if [[ -e /etc/squid/squid.conf ]] ;
 
 
      eth0ip=$(ip -4 -o addr show dev eth0 | sed -n 's/^.*inet \(.*\)\/.*$/\1/p')
+     ## should really panic if there is no eth0ip, but putting in a default ip is what we do instead
+     if [[ -z $eth0ip ]] ; then eth0ip=192.168.0.12 ; fi
 
      squidconf_modify "http_port $eth0ip:3128 transparent" "http_port 127.0.0.1:3128 transparent"
      squidconf_modify "visible_hostname $visname" "http_port $eth0ip:3128 transparent"
