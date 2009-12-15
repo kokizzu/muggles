@@ -181,7 +181,7 @@ form {
 <body>
 <form name="uplinkstouse" action="switchisps.cgi">
 <p>
-<a href="mixed.cgi">Not sure what to do</a> | <a href="http://$LANGATEWAYIP/shutdown.html">Shut down the internet</a>
+<a href="http://$LANGATEWAYIP/ipaudit">ipaudit</a> | <a href="mixed.cgi">shuffle uplinks</a> | <a href="http://$LANGATEWAYIP/shutdown.html">turn off the internet</a>
 <!-- see http://www.willmaster.com/possibilities/archives/wmp20031230001.shtml if you want to make this prettier -->
 </p>
 

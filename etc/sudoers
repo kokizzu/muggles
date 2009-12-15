@@ -19,6 +19,7 @@ www-data        lennygwbox= NOPASSWD: /sbin/shutdown
 www-data        lennygwbox= NOPASSWD: /sbin/ip
 www-data        lennygwbox= NOPASSWD: /usr/bin/nmap
 www-data        lennygwbox= NOPASSWD: /usr/local/sbin/rulerunner
+www-data        lennygwbox= NOPASSWD: /usr/local/sbin/mixed
 
 # Uncomment to allow members of group sudo to not need a password
 # (Note that later entries override this, so you might need to move

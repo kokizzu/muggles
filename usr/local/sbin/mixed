@@ -1,0 +1,54 @@
+#!/bin/sh
+#set -x -v
+
+## randomly shuffle uplinks to users
+
+
+## configuration options
+
+dleases_path=/var/lib/misc/dnsmasq.leases
+logon=0
+## logon=1 switches logging on, logon=0 switches it off
+
+## end of configuration options
+
+
+log ()
+{ if [[ "${logon}" == "1" ]] ;
+  then echo "$1" >> /var/log/muggles/rulerunner.log
+ fi
+}
+
+log "############`date`:#################"
+log "rules:"
+ip rule show | grep uplink | while read line; do log "$line"; done
+
+
+NUMBER_OF_UPLINKS=`ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x`
+lastinterface='eth'$NUMBER_OF_UPLINKS
+
+
+function uplink_random_uplink_number
+{
+uplink_rand=$(( RANDOM%NUMBER_OF_UPLINKS +1 ))
+echo $uplink_rand
+}
+
+
+mixlist=$(cut -f3 -d" " $dleases_path)
+if echo "$mixlist" | grep -q . ; then
+  for i in $mixlist; do
+    r=$(uplink_random_uplink_number)
+    ## get rid of *all* old rules on that ip just in case they exist
+    while ( ip rule del from $i 2>/dev/null ) ; do
+      log "removing ip $i from rules"
+    done
+    ip rule add from $i table uplink${r} ; log "added ip $i to uplink${r}"
+  done
+fi
+
+ip route flush cache
+log "done rules and flushed cache"
+
+log "rules:"
+ip rule show | grep uplink | while read line; do log "$line"; done

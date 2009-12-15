@@ -125,6 +125,7 @@ package_install etc/squid/squid.conf /etc/squid/squid.conf
 package_install usr/local/sbin/masq_ipconf /usr/local/sbin/masq_ipconf
 package_install usr/local/sbin/pinglogger /usr/local/sbin/pinglogger
 package_install usr/local/sbin/rulerunner /usr/local/sbin/rulerunner
+package_install usr/local/sbin/mixed /usr/local/sbin/mixed
 package_install usr/local/sbin/defaultrouting /usr/local/sbin/defaultrouting
 
 ## /usr/lib/cgi-bin
@@ -215,7 +216,8 @@ ARRAY=(\
 "www-data        $this_host= NOPASSWD: /sbin/shutdown" \
 "www-data        $this_host= NOPASSWD: /sbin/ip" \
 "www-data        $this_host= NOPASSWD: /usr/bin/nmap" \
-"www-data        $this_host= NOPASSWD: /usr/local/sbin/rulerunner"\
+"www-data        $this_host= NOPASSWD: /usr/local/sbin/rulerunner" \
+"www-data        $this_host= NOPASSWD: /usr/local/sbin/mixed"\
 )
 
 while [[ -e /etc/sudoers.tmp ]] ; do ( echo "sudoers.tmp exists - is sudoers being edited already? If so, fix it then continue by pressing enter"  ; read ) ; done
