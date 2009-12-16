@@ -4,43 +4,55 @@
 ## initializations start
 ##
 
-LANGATEWAYIP=$(ip -4 -o addr show eth0 | sed -n 's/^.*inet \([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\).*$/\1/p')
+number_of_lines_to_display=15
+secupdatesfile="/var/log/muggles/secupdates"
 
-UPLINK1=isp1
+
+## the uplinks:
+
+UPLINK_N=( 'isp1' 'isp2' )
+
 
 UPLINK1_NEAR_IP=192.168.1.254
 UPLINK1_FAR_NAME=yahoo.com
-## above 2 lines are automatically changed with changes in pinglogger_config when pinglogger is run
+## above 2 lines are searched for and automatically changed with changes in pinglogger_config when pinglogger is run
+## so for permanent changes, change in pinglogger_config
 
+## UPLINK1ROUTERURL=http://some_useful_url_on_router_eg_diagnostics_or_status
 UPLINK1ROUTERURL="http://192.168.1.254/cgi/b/is/_ethoa_/dt/?be=0&l0=1&l1=1&name=Internet"
-#handy for looking at a status web page on speedtouch thomson st706 uplink router - put in your own or leave blank
+## status web page on speedtouch thomson st706 uplink router
+## another example on another router I had at one time: UPLINK1ROUTERURL="http://$UPLINK1IP/cgi-bin/..%2Fcgi-bin%2Fwebcm?getpage=..%2Fhtml%2Fdefs%2Fstyle1%2Fmenus%2Fmenu1.html\&amp\;var\:style=style1\&amp\;var\:main=menu1\&amp\;var\:menu=status\&amp\;var\:menutitle=Status\&amp\;var\:pagename=syslog\&amp\;var\:errorpagename=syslog\&amp\;var\:pagetitle=System%20Log"
+
 UPLINK1_MONTH_TOTAL=`echo -n \<a href=\"$UPLINK1ROUTERURL\" title=\";  vnstat -m -i eth1 | grep \`date +%b\` | awk '{print "month "$(NF-10)": " $(NF -8) $(NF-7)" received "$(NF -5)$(NF-4)" sent "$(NF -2)$(NF-1)" total"}' | tr "\n" " "; echo \"\>`
+## or you can build your own total text: UPLINK1_MONTH_TOTAL=`echo -n \<a href=\"$UPLINK1ROUTERURL\" title=\";  vnstat -m -i eth1 | grep \`date +%b\` | awk '{ print  $(NF -9)" "$(NF -8)": "$(NF -1)" MB sent and received (free quota: 35GB, beyond quota 0.5 per MB)"}' | tr "\n" " "; echo \"\>`
 
 
-
-
-UPLINK2=isp2
 
 UPLINK2_NEAR_IP=192.168.1.254
 UPLINK2_FAR_NAME=google.com
-## above 2 lines are automatically changed with changes in pinglogger_config when pinglogger is run
-##some router had this##UPLINK2ROUTERURL="http://$UPLINK2IP/cgi-bin/..%2Fcgi-bin%2Fwebcm?getpage=..%2Fhtml%2Fdefs%2Fstyle1%2Fmenus%2Fmenu1.html\&amp\;var\:style=style1\&amp\;var\:main=menu1\&amp\;var\:menu=status\&amp\;var\:menutitle=Status\&amp\;var\:pagename=syslog\&amp\;var\:errorpagename=syslog\&amp\;var\:pagetitle=System%20Log"
+## above 2 lines are searched for and automatically changed with changes in pinglogger_config when pinglogger is run
+## so for permanent changes, change in pinglogger_config
 UPLINK2ROUTERURL="http://192.168.1.254/cgi/b/is/_ethoa_/dt/?be=0&l0=1&l1=1&name=Internet"
 UPLINK2_MONTH_TOTAL=`echo -n \<a href=\"$UPLINK2ROUTERURL\" title=\";  vnstat -m -i eth2 | grep \`date +%b\` | awk '{print "month "$(NF-10)": " $(NF -8) $(NF-7)" received "$(NF -5)$(NF-4)" sent "$(NF -2)$(NF-1)" total"}' | tr "\n" " "; echo \"\>`
 
-UPLINK3=isp3
-##UPLINK3_MONTH_TOTAL=`echo -n \<a href=\"$UPLINK3ROUTERURL\" title=\";  vnstat -m -i eth3 | grep \`date +%b\` | awk '{ print  $(NF -9)" "$(NF -8)": "$(NF -1)" MB sent and received (free quota: 35GB, beyond quota 0.5 per MB)"}' | tr "\n" " "; echo \"\>`
+## and so on:
 
 
-number_of_lines_to_display=15
-NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x)
-#number_of_uplinks=2
-let lines_for_tail=$NUMBER_OF_UPLINKS*$number_of_lines_to_display
+## UPLINK3_NEAR_IP=192.168.1.254
+## UPLINK3_FAR_NAME=facebook.com
+## ## above 2 lines are searched for and automatically changed with changes in pinglogger_config when pinglogger is run
+## ## so for permanent changes, change in pinglogger_config
+## UPLINK3ROUTERURL=http://some_useful_url_on_router_eg_diagnostics_or_status
+## UPLINK3_MONTH_TOTAL=`echo -n \<a href=\"$UPLINK3ROUTERURL\" title=\";  vnstat -m -i eth3 | grep \`date +%b\` | awk '{print "month "$(NF-10)": " $(NF -8) $(NF-7)" received "$(NF -5)$(NF-4)" sent "$(NF -2)$(NF-1)" total"}' | tr "\n" " "; echo \"\>`
 
-secupdatesfile="/var/log/muggles/secupdates"
+
 
 ##
 ## initializations end
+
+LANGATEWAYIP=$(ip -4 -o addr show eth0 | sed -n 's/^.*inet \([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\).*$/\1/p')
+NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x)
+let lines_for_tail=$NUMBER_OF_UPLINKS*$number_of_lines_to_display
 
 
 
@@ -156,16 +168,17 @@ TOPBIT
 
 
 for ((k=1; k<=$NUMBER_OF_UPLINKS; k++)) ; do
+array_index=$(($k-1))
 cat<<SHOWCURRENT
 <td> 
 <b>
-Uplink${k}: $(eval echo \$UPLINK${k}_MONTH_TOTAL) $(eval echo \$UPLINK${k})</a>
+Uplink${k}: $(eval echo \$UPLINK${k}_MONTH_TOTAL) ${UPLINK_N[${array_index}]}</a>
 <br>
 pings to:
 </b>
 <br>
 <br>
-<table summary="Uplink${k}: $(eval echo \$UPLINK${k})">
+<table summary="Uplink${k}: ${UPLINK_N[${array_index}]}">
 <tbody>
 <tr>
 <td><b>$(eval echo \$UPLINK${k}_FAR_NAME)</b><br><br>$(eval echo \$uplink${k}far_connectivity)</td>

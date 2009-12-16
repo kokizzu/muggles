@@ -1,5 +1,8 @@
 ## a bash source file used by pinglogger
 
+## you'll have to kill and rerun pinglogger to make the changes work
+## changes here will affect showcurrent.cgi via pinglogger
+
 #########################
 ## start of configurables
 
