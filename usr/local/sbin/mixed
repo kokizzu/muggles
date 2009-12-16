@@ -19,12 +19,12 @@ log ()
  fi
 }
 
-log "############`date`:#################"
+log "############$(date):#################"
 log "rules:"
 ip rule show | grep uplink | while read line; do log "$line"; done
 
 
-NUMBER_OF_UPLINKS=`ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x`
+NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x)
 lastinterface='eth'$NUMBER_OF_UPLINKS
 
 

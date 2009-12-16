@@ -38,7 +38,7 @@ The 8-fold path to a higher uplink state...
 
     * When it prompts you for package selection near the end of the installation, you can drop the selection "standard" so that it is truly a minimal installation. 
 
-2. aptitude install incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr dnsutils
+2. aptitude install incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr-tiny dnsutils
 
     * If you don't have them already, you will probably want to aptitude install openssh-client openssh-server. They are useful extras, but not necessary. Go on, just install them too. 
 
@@ -57,7 +57,6 @@ The 8-fold path to a higher uplink state...
 You should have now have a basic muggles with web gui front end. It does web and dns caching; time serving; checks for lenny updates; informs you of monthly use per uplink; lets you know what machines are alive on the lan; and checks and lets you change your uplinks from the web gui.
 
 If you're unlucky or your setup is less simple, well, here are the details so you can fix things to taste:
-
 
 
 Not-so-quickstart:

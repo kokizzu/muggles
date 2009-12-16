@@ -35,9 +35,9 @@ iface eth0 inet static
      } ;\
      dm_modify "$IFACE" "interface=" '#interface=' ;\
      dm_modify "$IF_ADDRESS" "dhcp-option=option:router," '#dhcp-option=option:router,1.2.3.4' ;\
-     dm_modify `echo $IF_DNS_NAMESERVERS | tr " " ","` 'dhcp-option=option:dns-server,' '#dhcp-option=option:domain-search,eng.apple.com,marketing.apple.com' ;\
+     dm_modify $(echo $IF_DNS_NAMESERVERS | tr " " ",") 'dhcp-option=option:dns-server,' '#dhcp-option=option:domain-search,eng.apple.com,marketing.apple.com' ;\
      if [[ -e /etc/openntpd/ntpd.conf ]] ;\
-       then ntp_listen_address=`grep -v ^# /etc/openntpd/ntpd.conf | grep ^'listen on' | tail -1 | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}'` ;\
+       then ntp_listen_address=$(grep -v ^# /etc/openntpd/ntpd.conf | grep ^'listen on' | tail -1 | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}') ;\
        dm_modify "$ntp_listen_address" 'dhcp-option=option:ntp-server,' '#dhcp-option=option:ntp-server,192.168.0.4,10.10.0.5' ;\
      fi ;\
      fi

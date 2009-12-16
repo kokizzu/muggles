@@ -21,7 +21,7 @@ log ()
 ## $1 here is not the argument to main, but the argument to log. Bash is funny that way.
 }
 
-log "############`date`:#################"
+log "############$(date):#################"
 log "dnsmasq leases at: $dleases_path are now :"
 while read line; do log "$line"; done < $dleases_path
 
@@ -38,11 +38,11 @@ log "------------------------------------------"
 
 
 
-NUMBER_OF_UPLINKS=`ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x`
+NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x)
 lastinterface='eth'$NUMBER_OF_UPLINKS
 ## only works if interfaces used are eth...
 
-NUMBER_OF_RULES=`ip rule show | grep '^32[0-9]\{3\}' | grep 'lookup uplink' | wc -l`
+NUMBER_OF_RULES=$(ip rule show | grep '^32[0-9]\{3\}' | grep 'lookup uplink' | wc -l)
 ## idea - automatically add rules in range 32000 - 32765. Can add rules manually to space < 32000)
 
 
@@ -55,7 +55,7 @@ NUMBER_OF_RULES=`ip rule show | grep '^32[0-9]\{3\}' | grep 'lookup uplink' | wc
 
 
 ## routing defined in interfaces per table gives: 
-# roundrobin number? NUMBER_OF_UPLINKS=`ip route show table all | grep "^default via .*table uplink[1-9][0-9]*" | wc -l`
+# roundrobin number? NUMBER_OF_UPLINKS=$(ip route show table all | grep "^default via .*table uplink[1-9][0-9]*" | wc -l)
 
 ## algorithm:
 
@@ -78,7 +78,7 @@ NUMBER_OF_RULES=`ip rule show | grep '^32[0-9]\{3\}' | grep 'lookup uplink' | wc
 ## 4. a new machine comes in? Then get a new lease line entry, new ip (guaranteed by dnsmasq to be non-conflicting for a genuinely new machine). Action: add rule for that ip.
 
 
-filebasename=`basename "$dleases_path"`
+filebasename=$(basename "$dleases_path")
 if echo "$filebasename" | grep -q . ; then
       if [ -e $dleases_path.1 ] ; then cp $dleases_path.1 $dleases_path.2 ; fi
       if [ -e $dleases_path ] ; then cut -f2-4 -d" " $dleases_path | sort > $dleases_path.1 ; fi
@@ -102,7 +102,7 @@ uplink_rand=$(( RANDOM%NUMBER_OF_UPLINKS +1 ))
 echo $uplink_rand
 }
 
-add_iplist=`diff $dleases_path.1 $dleases_path.2 | grep '^<' | cut -f3 -d" "`
+add_iplist=$(diff $dleases_path.1 $dleases_path.2 | grep '^<' | cut -f3 -d" ")
 if echo "$add_iplist" | grep -q . ; then
   for i in $add_iplist; do
     while ( ip rule del from $i 2>/dev/null ) ; do
@@ -110,12 +110,12 @@ if echo "$add_iplist" | grep -q . ; then
       log "removing new ip $i from rules"
     done
     ## get rid of *all* old rules on that ip just in case they exist
-    ip rule add from $i table uplink`uplink_random_uplink_number` ; echo "added new ip $i to rules" ; log "added new ip $i to rules"
+    ip rule add from $i table uplink$(uplink_random_uplink_number) ; echo "added new ip $i to rules" ; log "added new ip $i to rules"
   done
 fi
 
 
-remove_iplist=`diff $dleases_path.1 $dleases_path.2 | grep '^>' | cut -f3 -d" "`
+remove_iplist=$(diff $dleases_path.1 $dleases_path.2 | grep '^>' | cut -f3 -d" ")
 if echo "$remove_iplist" | grep -q . ; then
   for i in $remove_iplist; do
     while ( ip rule del from $i 2>/dev/null ) ; do
@@ -135,7 +135,7 @@ fi
 
 function manual_rule_insert {
   machinename=$1; uplink=$2 ; priority=$3
-  ip_machine=`cut -f3,4 -d" " $dleases_path | grep '$1$' | cut -f1 -d" "`
+  ip_machine=$(cut -f3,4 -d" " $dleases_path | grep '$1$' | cut -f1 -d" ")
 
   if [ ! -z "$ip_machine" ] ; then
     while ( ip rule del from $ip_machine 2>/dev/null ) ; do

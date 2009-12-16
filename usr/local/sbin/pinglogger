@@ -29,10 +29,10 @@ while (true) do
   for ((i=1; i<=$NUMBER_OF_UPLINKS; i++))
   do
     ip=$(eval echo '$'remotepinguplink${i})
-    ( echo -n "UPLINK${i}:`date +%H:%M`: " ; ping -i $ping_interval -q -W $ping_timeout -c $ping_count $ip 2>&1 | sed -n 's/^.*, \(.*\) packet \(loss\).*/\1 lost/p' ) >> $remote_pings_log
+    ( echo -n "UPLINK${i}:$(date +%H:%M): " ; ping -i $ping_interval -q -W $ping_timeout -c $ping_count $ip 2>&1 | sed -n 's/^.*, \(.*\) packet \(loss\).*/\1 lost/p' ) >> $remote_pings_log
 
     nearip=$(eval echo '$'nearip${i})
-    ( echo -n "UPLINK${i} bam: `date +%H:%M`: " ; ping -i $ping_interval -q -W $ping_timeout -c $ping_count $nearip 2>&1 | sed -n 's/^.*, \(.*\) packet \(loss\).*/\1 lost/p' ) >> $near_pings_log
+    ( echo -n "UPLINK${i} bam: $(date +%H:%M): " ; ping -i $ping_interval -q -W $ping_timeout -c $ping_count $nearip 2>&1 | sed -n 's/^.*, \(.*\) packet \(loss\).*/\1 lost/p' ) >> $near_pings_log
   done
 done 
 

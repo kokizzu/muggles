@@ -63,7 +63,7 @@ if [[ "${IFACE}" =~ eth[1-9][0-9]* ]] ; then
   iptables -t nat -A POSTROUTING -o ${IFACE} -j MASQUERADE
   
   ## we assume one interface per ip
-  interfaceip=`ip -4 -o addr show dev ${IFACE} | sed -n 's/^.*inet \(.*\)\/.*$/\1/p'`
+  interfaceip=$(ip -4 -o addr show dev ${IFACE} | sed -n 's/^.*inet \(.*\)\/.*$/\1/p')
   ##don't allow people on internet to access web interface or dns on gateway (using gateway interfaceip)
   iptables -A INPUT -i ${IFACE} -d $interfaceip -m multiport -p tcp --destination-ports 80,53 -j REJECT --reject-with tcp-reset
   iptables -A INPUT -i ${IFACE} -d $interfaceip -m multiport -p udp --destination-ports 80,53 -j DROP

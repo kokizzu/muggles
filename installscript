@@ -1,20 +1,19 @@
 #!/bin/bash
 
 #set -x -v
-
-if [[ ! `cat /etc/issue` =~ "Debian GNU/Linux 5.0" ]] ; then echo "This doesn't look like Lenny. Stopping." && exit 0 ; fi
+if ! grep -q "Debian GNU/Linux 5.0" /etc/issue ; then echo "This doesn't look like Lenny. Stopping." && exit 0 ; fi
 if [[ $PWD == "/" ]] ; then echo "Do the install from the source directory. Fix and run again." && exit 0  ; fi
 
-for i in incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr dnsutils openssh-client openssh-server
+for i in incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr-tiny dnsutils openssh-client openssh-server
 ## openssh-client and openssh-server are not needed but very useful
 do 
-  if [[ ! `( dpkg -s $i | grep ^Status )` =~ ^"Status: install ok installed" ]] ; then echo "Install $i first. Fix and run again." && exit 0  ; fi
+  if [[ ! $( dpkg -s $i | grep ^Status ) =~ ^"Status: install ok installed" ]] ; then echo "Install $i first. Fix and run again." && exit 0  ; fi
 done
 
 ## for squid at least:
 ( grep ^127.0.0.1 /etc/hosts | awk '{print $3}' | grep -q \. ) || {
   echo "Need an fqdn in /etc/hosts"
-  echo 'Eg: modify: 127.0.0.1 localhost ---> 127.0.0.1 localhost '`hostname`'.local'
+  echo 'Eg: modify: 127.0.0.1 localhost ---> 127.0.0.1 localhost '$(hostname)'.local'
   echo "Run again after fixing."
   exit 0
 }
@@ -75,14 +74,14 @@ mkdir_if_not_there '/etc/muggles'
 
 function package_install {
 
-ts=`date +%Y%m%d%H%M%S`
+ts=$(date +%Y%m%d%H%M%S)
 package_version="$1"
 installed_version="$2"
 
 
 if [[ -e $package_version ]] ; then
    if [[ -e $installed_version ]] ; then
-      if [[ -n `diff $installed_version $package_version` ]] ; then
+      if [[ -n $(diff $installed_version $package_version) ]] ; then
          echo "$installed_version which is already installed is going to be changed to the muggles version. Change? [y]" ; read yesno
          if [[ $yesno =~ (n|N) ]] ; then
            echo "Keeping $installed_version. This may break things so the installation will not work."
@@ -160,7 +159,7 @@ package_install var/www/switched.html /var/www/switched.html
 ARRAY=(\
 '@reboot       /etc/init.d/openntpd stop && /usr/sbin/ntpdate-debian && /etc/init.d/openntpd start' \
 '@reboot       >/var/lib/misc/dnsmasq.leases.1 ; /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases' \
-'@reboot       for i in `grep -v ^# /etc/muggles/interfaces | grep .` ; do /usr/local/sbin/masq_ipconf $i ; done' \
+'@reboot       for i in $(grep -v ^# /etc/muggles/interfaces | grep .) ; do /usr/local/sbin/masq_ipconf $i ; done' \
 '@reboot       sleep 20; /usr/local/sbin/defaultrouting' \
 '@reboot       sleep 30; aptitude update ; aptitude -q -s -y safe-upgrade | grep -A1 "The following packages will be upgraded:" | tail -1 | sed "s/^  //" > /var/log/muggles/secupdates' \
 '@reboot       sleep 40; /usr/local/sbin/pinglogger'\
@@ -194,7 +193,7 @@ done
 
 ## need to check preexistence
 
-if [[ `incrontab -l` =~ '/var/lib/misc/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /usr/local/sbin/rulerunner $@' ]]
+if [[ $(incrontab -l) =~ '/var/lib/misc/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /usr/local/sbin/rulerunner $@' ]]
    then echo "have a matching incron line, so changing nothing" 
    else
    echo "installing line into incrontab"
@@ -208,7 +207,7 @@ fi
 
 ## sudoers
 
-this_host=`hostname`
+this_host=$(hostname)
 
 ## add these lines to sudoers after checks
 
@@ -303,7 +302,7 @@ fi
 
 ## vnstat
 ## Gather vnstat data for interfaces except eth0. (initializes database gathering if it isn't already in place. Updates if it is already there)
-for i in `grep -v ^# /etc/muggles/interfaces | grep . | grep -v eth0` ; do vnstat -u -i $i ; echo "vnstat running for $i" ; done
+for i in $(grep -v ^# /etc/muggles/interfaces | grep . | grep -v eth0) ; do vnstat -u -i $i ; echo "vnstat running for $i" ; done
 
 
 ##### ) | column -s, -t
