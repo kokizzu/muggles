@@ -117,8 +117,8 @@ package_install etc/muggles/pinglogger_config /etc/muggles/pinglogger_config
 package_install etc/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf
 lighty-enable-mod cgi ; /etc/init.d/lighttpd restart
 
-package_install etc/squid/squid.conf /etc/squid/squid.conf
-
+## package_install etc/squid/squid.conf /etc/squid/squid.conf
+## handled from a default squid setup, see later
 
 ## /usr/local/sbin
 package_install usr/local/sbin/masq_ipconf /usr/local/sbin/masq_ipconf
@@ -135,6 +135,7 @@ package_install usr/lib/cgi-bin/showcurrent.cgi /usr/lib/cgi-bin/showcurrent.cgi
 package_install usr/lib/cgi-bin/shutcommand.cgi /usr/lib/cgi-bin/shutcommand.cgi
 package_install usr/lib/cgi-bin/switchisps.cgi /usr/lib/cgi-bin/switchisps.cgi
 
+chown www-data.www-data /usr/lib/cgi-bin/*
 
 ## /var/www/
 
@@ -148,6 +149,7 @@ package_install var/www/output.html /var/www/output.html
 package_install var/www/shutdown.html /var/www/shutdown.html
 package_install var/www/switched.html /var/www/switched.html
 
+chown www-data.www-data /var/www/*
 
 
 ## cron
