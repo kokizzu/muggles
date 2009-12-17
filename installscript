@@ -260,24 +260,22 @@ fi
 
 
 visname=$( grep ^127.0.0.1 /etc/hosts | awk '{print $3}' | grep \. )                                                                                                                                                                                        
-if [[ -e /etc/squid/squid.conf ]] ;
-     then function squidconf_modify {
+if [[ -e /etc/squid/squid.conf ]] ; then
+     cp /etc/squid/squid.conf /etc/squid/squid.conf_$ts
+
+     function squidconf_modify {
      squidconflinestart="$1" ; insertionpointstring="$2"
      ( grep -v ^# /etc/squid/squid.conf | grep ^"$squidconflinestart" ) 2>&1 > /dev/null || \
      sed -i "s/^\($insertionpointstring$\)/\1\n$squidconflinestart\n/" /etc/squid/squid.conf
      }
-
 
      ournetwork=$(ip route show dev eth0 | head -1 | awk '{print $1}' | sed 's/\//\\\//' )
      if [[ -z $ournetwork ]] ; then ournetwork='192.168.0.0\/24' ; fi
      squidconf_modify "acl our_networks src $ournetwork" 'http_access allow localhost' 
      squidconf_modify "http_access allow our_networks" "acl our_networks src $ournetwork"
 
-
-
      squidconf_modify "http_port 127.0.0.1:3128 transparent" "http_port 3128"
      sed -i "s/^\(http_port 3128$\)/#\1/" /etc/squid/squid.conf
-
 
      eth0ip=$(ip -4 -o addr show dev eth0 | sed -n 's/^.*inet \(.*\)\/.*$/\1/p')
      ## should really panic if there is no eth0ip, but putting in a default ip is what we do instead
