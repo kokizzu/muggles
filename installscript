@@ -269,7 +269,7 @@ if [[ -e /etc/squid/squid.conf ]] ;
 
 
      ournetwork=$(ip route show dev eth0 | head -1 | awk '{print $1}' | sed 's/\//\\\//' )
-     if [[ -z $ournetwork ]] ; then $ournetwork='192.168.0.0/24' ; fi
+     if [[ -z $ournetwork ]] ; then ournetwork='192.168.0.0/24' ; fi
      squidconf_modify "acl our_networks src $ournetwork" 'http_access allow localhost' 
      squidconf_modify "http_access allow our_networks" "acl our_networks src $ournetwork"
 
