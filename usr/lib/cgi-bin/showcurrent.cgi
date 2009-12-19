@@ -74,19 +74,22 @@ for ((k=1; k<=$NUMBER_OF_UPLINKS; k++)) ; do
   ##grayout inactive machines on each uplink with nmap in root mode (pretty fast)
 
   uplinkk_titled_machines[k-1]=$(
-  for ((i=1; i<=$uplinkk_total; i++))
-  do   { sudo nmap -sP ${uplinkk_machines[i-1]} 2>&1 | grep -q 'host up' ;} \
-    && { echo -n '<a href="http://'$LANGATEWAYIP'" title="'; host -s -t A ${uplinkk_machines[i-1]} $LANGATEWAYIP | tail -1 | cut -d' ' -f4 | tr -d '\n'; echo '">'${uplinkk_machines[i-1]}'</a>' ;} \
-    || { echo -n '<a href="http://'$LANGATEWAYIP'" title="'; host -s -t A ${uplinkk_machines[i-1]} $LANGATEWAYIP | tail -1 | cut -d' ' -f4 | tr -d '\n'; echo '" class="grayout">'${uplinkk_machines[i-1]}'</a>' ;} 
+  for ((i=1; i<=$uplinkk_total; i++)) ; do
+    machine_name=${uplinkk_machines[i-1]}
+    { sudo nmap -sP $machine_name 2>&1 | grep -q 'host up' && machine_ip=$(host -s -t A $machine_name $LANGATEWAYIP | tail -1 | cut -d' ' -f4 | tr -d '\n') ;} \
+    && { echo -n '<a href="http://'$LANGATEWAYIP'" title="'$machine_ip; echo '">'$machine_name'</a>' ;} \
+    || { echo -n '<a href="http://'$LANGATEWAYIP'" title="'$machine_ip; echo '" class="grayout">'$machine_name'</a>' ;} 
   done
   )
 
 
   ##list each uplink's parsed logs (far connections) 
   eval $(echo uplink${k}far_connectivity='$(tail --lines=${lines_for_tail} /var/log/muggles/remote_pings.log | grep -a ^UPLINK${k} | sed -e "s/^UPLINK${k}://" | sed -e '"'"'s/$/<br>/'"'"')')
+  uplinkk_far_connectivity[k-1]=$(tail --lines=${lines_for_tail} /var/log/muggles/remote_pings.log | grep -a ^UPLINK${k} | sed "s/^UPLINK${k}://" | sed 's/$/<br>/')
 
   ##list each uplink's parsed logs (near connections)
   eval $(echo uplink${k}near_connectivity='$(tail --lines=${lines_for_tail} /var/log/muggles/near_pings.log | grep -a ^UPLINK${k} | sed -e "s/^UPLINK${k} bam://" | sed -e '"'"'s/$/<br>/'"'"')')
+  uplinkk_near_connectivity[k-1]=$(tail --lines=${lines_for_tail} /var/log/muggles/near_pings.log | grep -a ^UPLINK${k} | sed "s/^UPLINK${k} bam://" | sed 's/$/<br>/')
 
 
 done
@@ -182,8 +185,8 @@ pings to:
 <table summary="Uplink${k}: ${UPLINK_NAME[${array_index}]}">
 <tbody>
 <tr>
-<td><b>$(eval echo \$UPLINK${k}_FAR_NAME)</b><br><br>$(eval echo \$uplink${k}far_connectivity)</td>
-<td><b>$(eval echo \$UPLINK${k}_NEAR_IP)</b><br><br>$(eval echo \$uplink${k}near_connectivity)</td>
+<td><b>$(eval echo \$UPLINK${k}_FAR_NAME)</b><br><br>${uplinkk_far_connectivity[k-1]}</td>
+<td><b>$(eval echo \$UPLINK${k}_NEAR_IP)</b><br><br>${uplinkk_near_connectivity[k-1]}</td>
 </tr>
 </tbody>
 </table><input type="checkbox" name="uplink${k}_checkbox">${uplinkk_titled_machines[k-1]}
