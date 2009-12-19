@@ -10,8 +10,9 @@ source /etc/muggles/pinglogger_config
 
 for ((i=1; i<=$NUMBER_OF_UPLINKS; i++)) ; do
   gateway_i=$(ip route show dev eth$i table uplink$i | grep ^default | cut -f3 -d" ")
-  remote_ping_uplink_i=$(eval echo '$'remotepinguplink${i})
-  ip route add $remote_ping_uplink_i via $gateway_i
+
+  remote_ping_uplink_i=${remote_ping_uplinkk_ip[i-1]}
+  ip route add ${remote_ping_uplinkk_ip[i-1]} via $gateway_i
 done
 
 
@@ -26,7 +27,7 @@ interface=$(ip route get $current_default_route | grep $current_default_route | 
 current_interface_number=$( echo $interface | sed 's/eth//'  )
 ## only works for eth1,2,3 etc
 
-current_remote_ping=$(eval echo '$'remotepinguplink${current_interface_number})
+current_remote_ping=${remote_ping_uplinkk_ip[current_interface_number-1]}
 
 if  ping -c2 -w2 $current_remote_ping 2>&1 > /dev/null ; then
      :
@@ -38,7 +39,7 @@ if  ping -c2 -w2 $current_remote_ping 2>&1 > /dev/null ; then
        ip route del default
        new_route=$( eval ip route show table uplink${i} | cut -f3 -d" ")
        ip route add default via $new_route   
-       current_remote_ping=$(eval echo '$'remotepinguplink${i})
+       current_remote_ping=${remote_ping_uplinkk_ip[current_interface_number-1]}
        ping -c2 -w2 $current_remote_ping 2>&1 > /dev/null  && pinging_remote=1
    done
 fi
