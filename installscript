@@ -4,17 +4,21 @@
 if ! grep -q "Debian GNU/Linux 5.0" /etc/issue ; then echo "This doesn't look like Lenny. Stopping." && exit 0 ; fi
 if [[ $PWD == "/" ]] ; then echo "Do the install from the source directory. Fix and run again." && exit 0  ; fi
 
+
+packages_needed=0
 for i in incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr-tiny dnsutils openssh-client openssh-server
 ## openssh-client and openssh-server are not needed but very useful
 do 
-  if [[ ! $( dpkg -s $i | grep ^Status ) =~ ^"Status: install ok installed" ]] ; then echo "Install $i first. Fix and run again." && exit 0  ; fi
+  if [[ ! $( dpkg -s $i | grep ^Status ) =~ ^"Status: install ok installed" ]] ; then echo "Package $i missing." && packages_needed=1  ; fi
 done
+if ((packages_needed)) ;then echo "Need to install package(s) above. Fix and run again." && exit 0 ; fi
+
 
 ## for squid at least:
 ( grep ^127.0.0.1 /etc/hosts | awk '{print $3}' | grep -q \. ) || {
   echo "Need an fqdn in /etc/hosts"
   echo 'Eg: modify: 127.0.0.1 localhost ---> 127.0.0.1 localhost '$(hostname)'.local'
-  echo "Run again after fixing."
+  echo "Fix and run again"
   exit 0
 }
 
