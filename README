@@ -65,30 +65,5 @@ Not-so-quickstart:
 The Details
 ===========
 
-
-Detailed documentation at:
-
-
 http://code.google.com/p/muggles/wiki/PageName#Not-so-Quickstart_(for_if_you_want_more)
-
-
-
-
-
-some loose ends, notes which will be migrated to the wiki url above:
-
-logrotate
-for if the /var/log/muggles files keep growing and you want to keep them. Or you can just cron remove them.
-
-vbox
-Test environment setup:
-
-vboxmanage clonevdi alanclient.vdi dlanclient.vdi   (make sure alanclient.vdi is powered off)
-vboxmanage registerimage disk dlanclient.vdi
-vboxmanage createvm -name dlanclient
-
-do a comparison between vboxmanage showvminfo dlanclient and vboxmanage showvminfo alanclient, and modify acordingly,
-eg: vboxmanage modifyvm dlanclient -ostype Debian -memory 512MB
-
-
 
