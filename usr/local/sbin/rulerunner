@@ -12,6 +12,10 @@ logon=0
 
 match_forced_uplink_config_file="/etc/muggles/forced_uplink.conf"
 
+#uplink_function_choice=random_uplink_number
+uplink_function_choice=roundrobin_uplink_number
+
+
 ## end of configuration options
 
 
@@ -91,14 +95,10 @@ roundrobin_number=$(( $roundrobin_number%NUMBER_OF_UPLINKS +1  ))
 
 function random_uplink_number
 {
-number_out=$(( RANDOM%NUMBER_OF_UPLINKS +1 ))
-echo $number_out
+random_number=$(( RANDOM%NUMBER_OF_UPLINKS +1 ))
+echo $random_number
 }
 
-#uplink_function_choice=random_uplink_number
-uplink_function_choice=roundrobin_uplink_number
-
-#admin_defined would come in as an exception check FIXME
 
 add_iplist=$(diff $dleases_path.1 $dleases_path.2 | grep '^<' | cut -f3 -d" ")
 if echo "$add_iplist" | grep -q . ; then
