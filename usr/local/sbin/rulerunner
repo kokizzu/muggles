@@ -1,6 +1,5 @@
 #!/bin/sh
-#set -x
-#set -v
+#set -x -v
 
 ## dynamic rules for machines on lan decide what uplink they will use when leases file changes
 ## uses incrontab entry: /full/path/to/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /etc/network/if-up.d/rulerunner $@
@@ -10,6 +9,8 @@ dleases_path=$1
 
 logon=0
 ## logon=1 switches logging on, logon=0 switches it off
+
+match_forced_uplink_config_file="/etc/muggles/forced_uplink.conf"
 
 ## end of configuration options
 
@@ -41,21 +42,16 @@ log "------------------------------------------"
 NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x)
 lastinterface='eth'$NUMBER_OF_UPLINKS
 ## only works if interfaces used are eth...
+## routing defined in interfaces per table gives: 
+# NUMBER_OF_UPLINKS=$(ip route show table all | grep "^default via .*table uplink[1-9][0-9]*" | wc -l)
 
 NUMBER_OF_RULES=$(ip rule show | grep '^32[0-9]\{3\}' | grep 'lookup uplink' | wc -l)
-## idea - automatically add rules in range 32000 - 32765. Can add rules manually to space < 32000)
+## 766 uplink allocations limit (from 32000 to 32765). So, plenty more than a class c subnet.
+
+roundrobin_number=$(( NUMBER_OF_RULES%NUMBER_OF_UPLINKS + 1 ))
+## initial uplink number where we should start adding new users when roundrobin is selected
 
 
-
-
-
-
-
-
-
-
-## routing defined in interfaces per table gives: 
-# roundrobin number? NUMBER_OF_UPLINKS=$(ip route show table all | grep "^default via .*table uplink[1-9][0-9]*" | wc -l)
 
 ## algorithm:
 
@@ -87,30 +83,39 @@ fi
 ## get rid of epoch time field for algorithm purposes
 
 
-function uplink_roundrobin_number
+function roundrobin_uplink_number
 {
-## defined in /etc/network/interfaces and /etc/iproute2/rt_tables  
-uplink_rr=$(( NUMBER_OF_RULES%NUMBER_OF_UPLINKS + 1 ))
-echo $uplink_rr
+echo $roundrobin_number
+roundrobin_number=$(( $roundrobin_number%NUMBER_OF_UPLINKS +1  ))
 }
-### important to do - must we remove rules when machine leaves so we have a correct number of rules so rr works? ( do removal with incron )
-## FIXME
 
-function uplink_random_uplink_number
+function random_uplink_number
 {
-uplink_rand=$(( RANDOM%NUMBER_OF_UPLINKS +1 ))
-echo $uplink_rand
+number_out=$(( RANDOM%NUMBER_OF_UPLINKS +1 ))
+echo $number_out
 }
+
+#uplink_function_choice=random_uplink_number
+uplink_function_choice=roundrobin_uplink_number
+
+#admin_defined would come in as an exception check FIXME
 
 add_iplist=$(diff $dleases_path.1 $dleases_path.2 | grep '^<' | cut -f3 -d" ")
 if echo "$add_iplist" | grep -q . ; then
   for i in $add_iplist; do
     while ( ip rule del from $i 2>/dev/null ) ; do
-      echo "removing new ip $i from rules"
       log "removing new ip $i from rules"
     done
     ## get rid of *all* old rules on that ip just in case they exist
-    ip rule add from $i table uplink$(uplink_random_uplink_number) ; echo "added new ip $i to rules" ; log "added new ip $i to rules"
+
+    match_forced_uplink=$(sed -n "s/^$i[ \t][ \t]*\(.*\)$/\1/p" $match_forced_uplink_config_file)
+    if [[ -n $match_forced_uplink ]]
+    then
+          ip rule add from $i table uplink${match_forced_uplink} ; log "added new ip $i to uplink${match_forced_uplink} (decided by $match_forced_uplink_config_file)"
+    else
+          returned_uplink=$($uplink_function_choice)
+          ip rule add from $i table uplink${returned_uplink} ; log "added new ip $i to uplink${returned_uplink} (decided by $uplink_function_choice)"
+    fi
   done
 fi
 
@@ -119,7 +124,6 @@ remove_iplist=$(diff $dleases_path.1 $dleases_path.2 | grep '^>' | cut -f3 -d" "
 if echo "$remove_iplist" | grep -q . ; then
   for i in $remove_iplist; do
     while ( ip rule del from $i 2>/dev/null ) ; do
-      echo "removing old ip $i from rules"
       log "removing old ip $i from rules"
     done
     ## get rid of *all* old rules on that ip just in case they exist
@@ -127,41 +131,9 @@ if echo "$remove_iplist" | grep -q . ; then
 fi
 
 
-
-
-## manual rules section
-## what if we don't like the automatic rule above for uplink for a user? Then remove and reinsert. Eg:
-## if we want to force alan to uplink1 with priority 700 (let's keep non-roundrobin users below 1000, above 700)
-
-function manual_rule_insert {
-  machinename=$1; uplink=$2 ; priority=$3
-  ip_machine=$(cut -f3,4 -d" " $dleases_path | grep '$1$' | cut -f1 -d" ")
-
-  if [ ! -z "$ip_machine" ] ; then
-    while ( ip rule del from $ip_machine 2>/dev/null ) ; do
-      echo "removing $ip_machine ($machinename) from rules"
-      log "removing $ip_machine ($machinename) from rules"
-    done
-
-    ip rule add from $ip_machine table $uplink prio $priority
-    echo "adding rule from $ip_machine table $uplink prio $priority"
-    log "adding rule from $ip_machine table $uplink prio $priority"
-  fi
-}
-
-
-## machinename=$1; uplink=$2 ; priority=$3
-#manual_rule_insert "alan" "uplink1" "700"
-## uncomment above line to assign rule so that machinename uses uplink1 with priority 700
-## and add other lines according to taste.
-
-##
-## end of manual rules section
-
-ip rule show
 ip route flush cache
 
-echo "done rules and flushing cache"
+log "flushed cache"
 
 
 log "------------------------------------------"

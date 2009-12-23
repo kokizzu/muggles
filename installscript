@@ -116,6 +116,7 @@ package_install etc/network/interfaces /etc/network/interfaces
 
 package_install etc/dnsmasq.conf /etc/dnsmasq.conf 
 package_install etc/muggles/interfaces /etc/muggles/interfaces
+package_install etc/muggles/forced_uplink.conf /etc/muggles/forced_uplink.conf
 package_install etc/muggles/pinglogger_config /etc/muggles/pinglogger_config
 ## cp etc/muggles/* /etc/muggles/
 package_install etc/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf
