@@ -116,6 +116,7 @@ package_install etc/network/if-up.d/masq_ipconf /etc/network/if-up.d/masq_ipconf
 ##  then have to run a lot of stuff again including some crontab entries 
 
 package_install etc/dnsmasq.conf /etc/dnsmasq.conf 
+package_install etc/logrotate.d/muggles /etc/logrotate.d/muggles
 package_install etc/muggles/forced_uplink.conf /etc/muggles/forced_uplink.conf
 package_install etc/muggles/pinglogger_config /etc/muggles/pinglogger_config
 package_install etc/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf

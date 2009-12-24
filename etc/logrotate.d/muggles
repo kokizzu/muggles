@@ -1,0 +1,7 @@
+/var/log/muggles/*.log {
+        daily
+        missingok
+        rotate 10
+	size 50k
+}
+
