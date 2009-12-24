@@ -2,7 +2,7 @@
 #set -x -v
 
 ## dynamic rules for machines on lan decide what uplink they will use when leases file changes
-## uses incrontab entry: /full/path/to/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /etc/network/if-up.d/rulerunner $@
+## uses incrontab entry: /full/path/to/dnsmasq.leases IN_MODIFY,IN_NO_LOOP /usr/local/sbin/rulerunner $@
 ## which passes the path of dnsmasq.leases to $1
 
 dleases_path=$1
