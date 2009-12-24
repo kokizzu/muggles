@@ -2,7 +2,6 @@
 #set -x
 #set -v
 
-IFACE=$1
 PATH=/sbin:$PATH
 
 ## ideally, would run this from if-up.d/, but only random rules get applied then - some race condition?
@@ -26,7 +25,7 @@ if [ "${IFACE}" == "eth0" ] ; then
   iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
   iptables -A INPUT -m state --state NEW -i eth0 -j ACCEPT
 
-  #iptables -t nat -A POSTROUTING -j MASQUERADE
+#  iptables -t nat -A POSTROUTING -j MASQUERADE
   #don't set this - it would masq every interface to every other one. Instead, do it per output interface 
   
   #redirect lan web traffic to port 3128 if squid is running
@@ -50,26 +49,38 @@ fi
 
 
 if [[ "${IFACE}" =~ eth[1-9][0-9]* ]] ; then
+
+
+  ## iptables sometimes errors during load
+  wrap_iptables_line ()
+  {
+  error_count=1 ; maximum_tries=5
+  until ( eval "$1" || [ $error_count -eq $maximum_tries ] )
+  do error_count=$(( $error_count + 1 )) ; sleep 1;  done
+  }
+
+
   #Allow established connections, from the outside to lan
-  iptables -A FORWARD -i ${IFACE} -o eth0 -m state --state ESTABLISHED,RELATED -j ACCEPT
+  wrap_iptables_line "iptables -A FORWARD -i ${IFACE} -o eth0 -m state --state ESTABLISHED,RELATED -j ACCEPT"
   
   # Allow outgoing connections from the LAN side.
-  iptables -A FORWARD -i eth0 -o ${IFACE} -j ACCEPT
+  wrap_iptables_line "iptables -A FORWARD -i eth0 -o ${IFACE} -j ACCEPT"
   
   #don't forward outside connections to LAN (masq handles that)
-  iptables -A FORWARD -i ${IFACE} -o eth0 -j REJECT
+  wrap_iptables_line "iptables -A FORWARD -i ${IFACE} -o eth0 -j REJECT"
 
   # masq connections for the route to do with that interface
-  iptables -t nat -A POSTROUTING -o ${IFACE} -j MASQUERADE
+  wrap_iptables_line "iptables -t nat -A POSTROUTING -o ${IFACE} -j MASQUERADE"
   
   ## we assume one interface per ip
   interfaceip=$(ip -4 -o addr show dev ${IFACE} | sed -n 's/^.*inet \(.*\)\/.*$/\1/p')
+
   ##don't allow people on internet to access web interface or dns on gateway (using gateway interfaceip)
-  iptables -A INPUT -i ${IFACE} -d $interfaceip -m multiport -p tcp --destination-ports 80,53 -j REJECT --reject-with tcp-reset
-  iptables -A INPUT -i ${IFACE} -d $interfaceip -m multiport -p udp --destination-ports 80,53 -j DROP
+  wrap_iptables_line "iptables -A INPUT -i ${IFACE} -d $interfaceip -m multiport -p tcp --destination-ports 80,53 -j REJECT --reject-with tcp-reset"
+  wrap_iptables_line "iptables -A INPUT -i ${IFACE} -d $interfaceip -m multiport -p udp --destination-ports 80,53 -j DROP"
 
   ## accept ssh (maybe add rate limiter to stop brute-force?)
-  iptables -A INPUT -i ${IFACE} -d $interfaceip -p tcp --destination-port 22 -j ACCEPT
+  wrap_iptables_line "iptables -A INPUT -i ${IFACE} -d $interfaceip -p tcp --destination-port 22 -j ACCEPT"
 
 fi
 

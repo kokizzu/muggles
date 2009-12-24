@@ -110,15 +110,14 @@ fi
 
 ## /etc/
 package_install etc/network/interfaces /etc/network/interfaces
+package_install etc/network/if-up.d/masq_ipconf /etc/network/if-up.d/masq_ipconf
 
 ## later, with debconf: user changes interface values
 ##  then have to run a lot of stuff again including some crontab entries 
 
 package_install etc/dnsmasq.conf /etc/dnsmasq.conf 
-package_install etc/muggles/interfaces /etc/muggles/interfaces
 package_install etc/muggles/forced_uplink.conf /etc/muggles/forced_uplink.conf
 package_install etc/muggles/pinglogger_config /etc/muggles/pinglogger_config
-## cp etc/muggles/* /etc/muggles/
 package_install etc/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf
 lighty-enable-mod cgi ; /etc/init.d/lighttpd restart
 
@@ -126,7 +125,6 @@ lighty-enable-mod cgi ; /etc/init.d/lighttpd restart
 ## handled from a default squid setup, see later
 
 ## /usr/local/sbin
-package_install usr/local/sbin/masq_ipconf /usr/local/sbin/masq_ipconf
 package_install usr/local/sbin/pinglogger /usr/local/sbin/pinglogger
 package_install usr/local/sbin/rulerunner /usr/local/sbin/rulerunner
 package_install usr/local/sbin/mixed /usr/local/sbin/mixed
@@ -166,7 +164,6 @@ chown www-data.www-data /var/www/*
 ARRAY=(\
 '@reboot       /etc/init.d/openntpd stop && /usr/sbin/ntpdate-debian && /etc/init.d/openntpd start' \
 '@reboot       >/var/lib/misc/dnsmasq.leases.1 ; /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases' \
-'@reboot       for i in $(grep -v ^# /etc/muggles/interfaces | grep .) ; do /usr/local/sbin/masq_ipconf $i ; done' \
 '@reboot       sleep 20; /usr/local/sbin/defaultrouting' \
 '@reboot       sleep 30; aptitude update ; aptitude -q -s -y safe-upgrade | grep -A1 "The following packages will be upgraded:" | tail -1 | sed "s/^  //" > /var/log/muggles/secupdates' \
 '@reboot       sleep 40; /usr/local/sbin/pinglogger'\
@@ -308,7 +305,8 @@ fi
 
 ## vnstat
 ## Gather vnstat data for interfaces except eth0. (initializes database gathering if it isn't already in place. Updates if it is already there)
-for i in $(grep -v ^# /etc/muggles/interfaces | grep . | grep -v eth0) ; do vnstat -u -i $i ; echo "vnstat running for $i" ; done
+NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x)
+for (( i=1;i<=$NUMBER_OF_UPLINKS;i++)); do vnstat -u -i eth$i ; echo "vnstat running for $i" ; done
 
 
 ##### ) | column -s, -t
