@@ -4,24 +4,11 @@
 
 PATH=/sbin:$PATH
 
-source /etc/muggles/pinglogger_config
+source /etc/muggles/pinglogger.conf
 
 #( ping -c1 -w1 $remotepinguplink1 2>&1 | grep unreachable ) && ( echo no route; exit 0 )
 ( ping -c1 -w1 ${remote_ping_uplinkk_ip[0]} 2>&1 | grep unreachable ) && ( echo no route; exit 0 )
 ## this is a stupid hack. Fix logic later (see config file also)
-
-
-
-## change web script so names and ips are the latest
-for ((i=1; i<=$NUMBER_OF_UPLINKS; i++))
-do
-  farname=${remote_ping_uplinkk_name[i-1]}
-  sed -i "s/^UPLINK${i}_FAR_NAME=.*$/UPLINK${i}_FAR_NAME=$farname/" $path_to_showcurrent
-
-  nearip=${nearipk[i-1]}
-  sed -i "s/^UPLINK${i}_NEAR_IP=.*/UPLINK${i}_NEAR_IP=$nearip/" $path_to_showcurrent
-done
-
 
 >$near_pings_log
 >$remote_pings_log
