@@ -165,7 +165,7 @@ chown www-data.www-data /var/www/*
 ARRAY=(\
 '@reboot       /etc/init.d/openntpd stop && /usr/sbin/ntpdate-debian && /etc/init.d/openntpd start' \
 '@reboot       >/var/lib/misc/dnsmasq.leases.1 ; /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases' \
-'@reboot       ( pgrep -u proxy ) 2>&1>/dev/null && /sbin/iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128'
+'@reboot       ( pgrep -u proxy ) 2>&1>/dev/null && /sbin/iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128' \
 '@reboot       sleep 20; /usr/local/sbin/defaultrouting' \
 '@reboot       sleep 30; aptitude update ; aptitude -q -s -y safe-upgrade | grep -A1 "The following packages will be upgraded:" | tail -1 | sed "s/^  //" > /var/log/muggles/secupdates' \
 '@reboot       sleep 40; /usr/local/sbin/pinglogger'\
@@ -221,7 +221,6 @@ ARRAY=(\
 "www-data        $this_host= NOPASSWD: /sbin/shutdown" \
 "www-data        $this_host= NOPASSWD: /sbin/ip" \
 "www-data        $this_host= NOPASSWD: /usr/bin/nmap" \
-"www-data        $this_host= NOPASSWD: /usr/local/sbin/rulerunner" \
 "www-data        $this_host= NOPASSWD: /usr/local/sbin/mixed"\
 )
 
