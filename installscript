@@ -24,11 +24,11 @@ if ((packages_needed)) ;then echo "Need to install package(s) above. Fix and run
 
 ## admonition to adjust /etc/network/interfaces
 echo "
-YOU MUST have eth0 active and set to the LAN IP you will be using
-if you want squid configuration to be done correctly during
-installation. Otherwise you will have to go through the muggles
-squid documentation to correct the guesses made during installation.
-Eg: if your IP on the LAN is 192.168.0.12, activate it with:
+YOU MUST have eth0 up and set to the LAN IP you will be using.
+Otherwise squid configuration will be broken and you will have
+to go through the muggles squid documentation to fix the wrong
+guesses made during installation. So, eg if the muggles box IP
+on the LAN is to be 192.168.0.12, activate it with:
   ifconfig eth0 192.168.0.12 up
     or
   ip addr add 192.168.0.12/24 dev eth0
@@ -56,10 +56,7 @@ broken installation.
 [press enter to continue]
 "
 read
-## put a network config script in later (feed to muggles/interfaces?)
-#tar xvzf muggles.tgz
-
-##
+## put a network config script in later (read ip/cidr, prompt for eth0...N)
 
 
 
@@ -118,7 +115,9 @@ package_install etc/network/if-up.d/masq_ipconf /etc/network/if-up.d/masq_ipconf
 package_install etc/dnsmasq.conf /etc/dnsmasq.conf 
 package_install etc/logrotate.d/muggles /etc/logrotate.d/muggles
 package_install etc/muggles/forced_uplink.conf /etc/muggles/forced_uplink.conf
-package_install etc/muggles/pinglogger_config /etc/muggles/pinglogger_config
+package_install etc/muggles/pinglogger.conf /etc/muggles/pinglogger.conf
+package_install etc/muggles/rulerunner.conf /etc/muggles/rulerunner.conf
+package_install etc/muggles/showcurrent.conf /etc/muggles/showcurrent.conf
 package_install etc/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf
 lighty-enable-mod cgi ; /etc/init.d/lighttpd restart
 
@@ -306,12 +305,13 @@ fi
 
 ## vnstat
 ## Gather vnstat data for interfaces except eth0. (initializes database gathering if it isn't already in place. Updates if it is already there)
-NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x)
+NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST.*/\1/' -e '$!{h;d;}' -e x)
+## ... <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/'...   if they are up
 for (( i=1;i<=$NUMBER_OF_UPLINKS;i++)); do vnstat -u -i eth$i ; echo "vnstat running for $i" ; done
 
 
 ##### ) | column -s, -t
-## matches a bracket at the begining, but you'll have to disable read prompts..
+## matches a bracket at the begining, but you'll have to disable read prompts.
 
 echo "Reboot now, and everything should probably just work"
 
