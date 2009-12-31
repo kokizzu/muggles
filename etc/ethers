@@ -1,0 +1,7 @@
+## see man (5) ethers and read-ethers in dnsmasq.conf
+## change these entries to your own set up
+## hostnames are names of convenience - they don't need to match the actual hostnames
+08:00:27:3F:EC:5F alan
+08:00:27:5A:FB:91 blan
+08:00:27:4D:0C:84 clan
+08:00:27:DB:1F:5D dlan

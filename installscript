@@ -6,10 +6,12 @@ if [[ $PWD == "/" ]] ; then echo "Do the install from the source directory. Fix 
 
 
 packages_needed=0
-for i in incron iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr-tiny dnsutils openssh-client openssh-server
+for i in incron ipcalc iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr-tiny dnsutils openssh-client openssh-server
 ## openssh-client and openssh-server are not needed but very useful
 do 
-  if [[ ! $( dpkg -s $i | grep ^Status ) =~ ^"Status: install ok installed" ]] ; then echo "Package $i missing." && packages_needed=1  ; fi
+  if [[ ! $( dpkg -s $i | grep ^Status ) =~ ^"Status: install ok installed" ]]
+   then echo "Package $i missing." && packages_needed=1
+  fi
 done
 if ((packages_needed)) ;then echo "Need to install package(s) above. Fix and run again." && exit 0 ; fi
 
@@ -22,42 +24,130 @@ if ((packages_needed)) ;then echo "Need to install package(s) above. Fix and run
   exit 0
 }
 
-## admonition to adjust /etc/network/interfaces
-echo "
-YOU MUST have eth0 up and set to the LAN IP you will be using.
-Otherwise squid configuration will be broken and you will have
-to go through the muggles squid documentation to fix the wrong
-guesses made during installation. So, eg if the muggles box IP
-on the LAN is to be 192.168.0.12, activate it with:
-  ifconfig eth0 192.168.0.12 up
-    or
-  ip addr add 192.168.0.12/24 dev eth0
+
+NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST.*/\1/' -e '$!{h;d;}' -e x)
+## ... <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/'...   if they are up
 
 
-YOU MUST adjust the network settings in /etc/network/interfaces
-to set it up for your own network layout. Unless your own network
-follows the default address values of muggles (see muggles test
-environment documentation). The adjusted values will take hold
-after reboot.
+whiptail --msgbox "           T H E    I N T E R N E T  
+            |        |           |
+    uplink1 gw1   uplink2 gw2   ....
+            |        |           |
+          (eth1)   (eth2)      (etc...)
+            |        |           |
+            ---- muggles box ----
+                     |
+                   (eth0)
+                     |
+  ------------------LAN------------------- ...
+ |       |                |        |       ...
 
-This installation script is meant for a clean lenny system. It
-will set default working interface addresses that are consistent,
-but these settings are unlikely to suit your network. The settings
-will take hold after reboot.
 
-This installer may not follow the debian policy manual very well.
-Making a real debian package out of this is the direction further
-development is intended.
+You need to put in these IP addresses (in CIDR notation):
 
-The README file gives exact details on how a clean lenny is 
-changed to a default muggles installation. Read it to fix a
-broken installation.
+0. For eth0 (the LAN facing interface)
+1. For eth1 (the first uplink-facing interface).
+   Also for the gateway used by the first uplink.
+2. For eth2 (the second uplink-facing interface).
+   Also for the gateway used by the second uplink.
+3.  ...etc " 28 68
 
-[press enter to continue]
-"
-read
-## put a network config script in later (read ip/cidr, prompt for eth0...N)
 
+for (( i=0;i<=$NUMBER_OF_UPLINKS;i++)); do
+  cidr_ip_eth[i]=$(</etc/muggles/cidr_ip_eth$i)
+  gw_ip_eth[i]=$(</etc/muggles/gw_ip_eth$i)
+
+
+
+  input_ok=0
+  until (( $input_ok )) ;
+  do
+    cidr_ip_eth[i]=$(
+                     whiptail --title "eth$i"\
+                              --inputbox  "ip/network (cidr notation) for eth$i. Eg: 192.168.$i.12/24"\
+                              10 80 ${cidr_ip_eth[i]} 2>&1 >/dev/tty
+                    )
+    echo ${cidr_ip_eth[i]} | grep -q -o '^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}/[0-9]\{1,2\}$' && input_ok=1
+  done
+  echo ${cidr_ip_eth[i]} >/etc/muggles/cidr_ip_eth$i
+
+
+
+  if (( i>0 )); then
+  input_ok=0
+  until (( $input_ok )) ;
+  do
+    gw_ip_eth[i]=$(
+                   whiptail --title "gateway used by ${cidr_ip_eth[i]}."\
+                   --inputbox  "gateway address (WITHOUT SUBNET SPECIFICATION) for eth$i."\
+                   10 80 ${gw_ip_eth[i]} 2>&1 >/dev/tty
+                  )
+    echo ${gw_ip_eth[i]} | grep -q -o '^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}$' && input_ok=1
+  done
+  echo ${gw_ip_eth[i]} >/etc/muggles/gw_ip_eth$i
+  fi
+
+done
+
+eth0ip=$(echo ${cidr_ip_eth[0]} | cut -f1 -d/)
+
+ipcalc_hostmin=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^HostMin | awk '{print $2}')
+ipcalc_hostmax=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^HostMax | awk '{print $2}')
+
+input_dns_range_ok=0
+until (( $input_dns_range_ok ))
+do
+  input_ok=0
+  until (( $input_ok )) ;
+  do
+    dnsmasq_range_lower=$(
+                          whiptail --title "lower ip address in dhcp range (interface ip is $eth0ip)"\
+                          --inputbox  "lower ip address (WITHOUT SUBNET SPECIFICATION) in dhcp range (interface ip is $eth0ip)"\
+                          10 80 $dhsmasq_range_lower 2>&1 >/dev/tty
+                         )
+    echo $dnsmasq_range_lower | grep -q -o '^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}$' && input_ok=1
+  done
+
+  input_ok=0
+
+  until (( $input_ok ))
+  do
+    dnsmasq_range_upper=$(
+                          whiptail --title "upper ip address in dhcp range (interface ip is $eth0ip)"\
+                          --inputbox  "upper ip address (WITHOUT SUBNET SPECIFICATION) in dhcp range (interface ip is $eth0ip)"\
+                          10 80 $dhsmasq_range_upper 2>&1 >/dev/tty
+                         )
+    echo $dnsmasq_range_upper | grep -q -o '^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}$' && input_ok=1
+  done
+
+
+  function decimate {
+                     OLDIFS=$IFS ; IFS="."
+                     read h1 h2 h3 h4 <<< "$1"
+                     echo $(( h1 * 256 * 256 * 256 + h2 * 256 * 256 + h3 * 256 + h4 ))
+                     IFS=$OLDIFS
+                    }
+
+  eth0ip_decimal=$(decimate $eth0ip)
+  dnsmasq_range_lower_decimal=$(decimate $dnsmasq_range_lower)
+  dnsmasq_range_upper_decimal=$(decimate $dnsmasq_range_upper)
+
+  ipcalc_hostmin_decimal=$(decimate $ipcalc_hostmin)  
+  ipcalc_hostmax_decimal=$(decimate $ipcalc_hostmax)  
+
+  if [[ (( ipcalc_hostmin_decimal -gt dnsmasq_range_lower_decimal )) || \
+        (( ipcalc_hostmax_decimal -lt dnsmasq_range_upper_decimal )) || \
+        (( ipcalc_hostmin_decimal -gt dnsmasq_range_upper_decimal )) || \
+        (( ipcalc_hostmax_decimal -lt dnsmasq_range_lower_decimal )) ]]
+      then whiptail --msgbox "IP range must fit within subnet. Please fix range." 10 50
+        ## dnsmasq server can be inside dhcp range without conflict (only downside is that ip is no longer there)
+        ## so the check done by the two lines below is not needed.
+      ##elif  [[ (( eth0ip_decimal -ge dnsmasq_range_lower_decimal )) && (( eth0ip_decimal -le dnsmasq_range_upper_decimal )) ]]
+      ##  then whiptail --msgbox "IP of eth0 must be outside dhcp range. Please fix range." 10 50
+  else
+    input_dns_range_ok=1
+  fi
+done
 
 
 ###(
@@ -106,51 +196,51 @@ fi
 
 
 ## /etc/
-package_install etc/network/interfaces /etc/network/interfaces
-package_install etc/network/if-up.d/masq_ipconf /etc/network/if-up.d/masq_ipconf
+package_install etc/network/interfaces			/etc/network/interfaces
+package_install etc/network/if-up.d/masq_ipconf		/etc/network/if-up.d/masq_ipconf
 
 ## later, with debconf: user changes interface values
 ##  then have to run a lot of stuff again including some crontab entries 
 
-package_install etc/dnsmasq.conf /etc/dnsmasq.conf 
-package_install etc/logrotate.d/muggles /etc/logrotate.d/muggles
-package_install etc/muggles/forced_uplink.conf /etc/muggles/forced_uplink.conf
-package_install etc/muggles/pinglogger.conf /etc/muggles/pinglogger.conf
-package_install etc/muggles/rulerunner.conf /etc/muggles/rulerunner.conf
-package_install etc/muggles/showcurrent.conf /etc/muggles/showcurrent.conf
-package_install etc/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf
+package_install etc/ethers				/etc/ethers
+package_install etc/logrotate.d/muggles			/etc/logrotate.d/muggles
+package_install etc/muggles/forced_uplink.conf		/etc/muggles/forced_uplink.conf
+package_install etc/muggles/pinglogger.conf		/etc/muggles/pinglogger.conf
+package_install etc/muggles/rulerunner.conf		/etc/muggles/rulerunner.conf
+package_install etc/muggles/showcurrent.conf		/etc/muggles/showcurrent.conf
+package_install etc/lighttpd/lighttpd.conf		/etc/lighttpd/lighttpd.conf
 lighty-enable-mod cgi ; /etc/init.d/lighttpd restart
 
-## package_install etc/squid/squid.conf /etc/squid/squid.conf
-## handled from a default squid setup, see later
+## package_install etc/squid/squid.conf			/etc/squid/squid.conf
+## not needed. handled from existing squid setup, see later
 
 ## /usr/local/sbin
-package_install usr/local/sbin/pinglogger /usr/local/sbin/pinglogger
-package_install usr/local/sbin/rulerunner /usr/local/sbin/rulerunner
-package_install usr/local/sbin/mixed /usr/local/sbin/mixed
-package_install usr/local/sbin/defaultrouting /usr/local/sbin/defaultrouting
+package_install usr/local/sbin/pinglogger		/usr/local/sbin/pinglogger
+package_install usr/local/sbin/rulerunner		/usr/local/sbin/rulerunner
+package_install usr/local/sbin/mixed			/usr/local/sbin/mixed
+package_install usr/local/sbin/defaultrouting		/usr/local/sbin/defaultrouting
 
 ## /usr/lib/cgi-bin
 
-package_install usr/lib/cgi-bin/cgi-test.cgi /usr/lib/cgi-bin/cgi-test.cgi
-package_install usr/lib/cgi-bin/mixed.cgi /usr/lib/cgi-bin/mixed.cgi
-package_install usr/lib/cgi-bin/showcurrent.cgi /usr/lib/cgi-bin/showcurrent.cgi
-package_install usr/lib/cgi-bin/shutcommand.cgi /usr/lib/cgi-bin/shutcommand.cgi
-package_install usr/lib/cgi-bin/switchisps.cgi /usr/lib/cgi-bin/switchisps.cgi
+package_install usr/lib/cgi-bin/cgi-test.cgi		/usr/lib/cgi-bin/cgi-test.cgi
+package_install usr/lib/cgi-bin/mixed.cgi		/usr/lib/cgi-bin/mixed.cgi
+package_install usr/lib/cgi-bin/showcurrent.cgi		/usr/lib/cgi-bin/showcurrent.cgi
+package_install usr/lib/cgi-bin/shutcommand.cgi		/usr/lib/cgi-bin/shutcommand.cgi
+package_install usr/lib/cgi-bin/switchisps.cgi		/usr/lib/cgi-bin/switchisps.cgi
 
 chown www-data.www-data /usr/lib/cgi-bin/*
 
 ## /var/www/
 
-package_install var/www/background.gif /var/www/background.gif
-package_install var/www/button-a.gif /var/www/button-a.gif
-package_install var/www/button.gif /var/www/button.gif 
-package_install var/www/favicon.ico /var/www/favicon.ico 
-package_install var/www/index.html /var/www/index.html
-package_install var/www/index.lighttpd.html /var/www/index.lighttpd.html
-package_install var/www/output.html /var/www/output.html
-package_install var/www/shutdown.html /var/www/shutdown.html
-package_install var/www/switched.html /var/www/switched.html
+package_install var/www/background.gif			/var/www/background.gif
+package_install var/www/button-a.gif			/var/www/button-a.gif
+package_install var/www/button.gif			/var/www/button.gif 
+package_install var/www/favicon.ico			/var/www/favicon.ico 
+package_install var/www/index.html			/var/www/index.html
+package_install var/www/index.lighttpd.html		/var/www/index.lighttpd.html
+package_install var/www/output.html			/var/www/output.html
+package_install var/www/shutdown.html			/var/www/shutdown.html
+package_install var/www/switched.html			/var/www/switched.html
 
 chown www-data.www-data /var/www/*
 
@@ -253,41 +343,35 @@ if [[ -e /etc/bandwidthd/bandwidthd.conf ]] ; then
 fi
 
 
+configfile_modify () {
+    appendstring="$1" ; stringstart="$2" ; insertionpointstring="$3" ; configfile_name="$4"
+    ( grep -v ^# $configfile_name | grep ^"$stringstart" ) 2>&1 > /dev/null && \
+    sed -i "s/^$stringstart.*$/$stringstart$appendstring/" $configfile_name ||\
+    sed -i "s/^\($insertionpointstring\)$/\1\n$stringstart$appendstring\n/" $configfile_name
+  }
+
 
 ## squid
 
-## when network interfaces is set up (package install section) I should restart squid
-## after that squid config routine here will configure ok
+sqcf='/etc/squid/squid.conf'
 
+if [[ -e ${sqcf} ]] ; then
+     cp ${sqcf} ${sqcf}_${ts}
 
+     ournetwork=$( ipcalc ${cidr_ip_eth[0]} -n  | grep ^Network | awk {'print $2'} | sed 's/\//\\\//')
+     configfile_modify ''	"acl our_networks src $ournetwork"	'http_access allow localhost'		${sqcf}
+     configfile_modify ''	"http_access allow our_networks"	"acl our_networks src $ournetwork"	${sqcf}
 
-visname=$( grep ^127.0.0.1 /etc/hosts | awk '{print $3}' | grep \. )                                                                                                                                                                                        
-if [[ -e /etc/squid/squid.conf ]] ; then
-     cp /etc/squid/squid.conf /etc/squid/squid.conf_$ts
+     configfile_modify ''	"http_port 127.0.0.1:3128 transparent"	"http_port 3128"			${sqcf}
+     sed -i "s/^\(http_port 3128$\)/#\1/" ${sqcf}
 
-     function squidconf_modify {
-     squidconflinestart="$1" ; insertionpointstring="$2"
-     ( grep -v ^# /etc/squid/squid.conf | grep ^"$squidconflinestart" ) 2>&1 > /dev/null || \
-     sed -i "s/^\($insertionpointstring$\)/\1\n$squidconflinestart\n/" /etc/squid/squid.conf
-     }
+     configfile_modify ''	"http_port $eth0ip:3128 transparent"	"http_port 127.0.0.1:3128 transparent"	${sqcf}
 
-     ournetwork=$(ip route show dev eth0 | head -1 | awk '{print $1}' | sed 's/\//\\\//' )
-     if [[ -z $ournetwork ]] ; then ournetwork='192.168.0.0\/24' ; fi
-     squidconf_modify "acl our_networks src $ournetwork" 'http_access allow localhost' 
-     squidconf_modify "http_access allow our_networks" "acl our_networks src $ournetwork"
-
-     squidconf_modify "http_port 127.0.0.1:3128 transparent" "http_port 3128"
-     sed -i "s/^\(http_port 3128$\)/#\1/" /etc/squid/squid.conf
-
-     eth0ip=$(ip -4 -o addr show dev eth0 | sed -n 's/^.*inet \(.*\)\/.*$/\1/p')
-     ## should really panic if there is no eth0ip, but putting in a default ip is what we do instead
-     if [[ -z $eth0ip ]] ; then eth0ip=192.168.0.12 ; fi
-
-     squidconf_modify "http_port $eth0ip:3128 transparent" "http_port 127.0.0.1:3128 transparent"
-     squidconf_modify "visible_hostname $visname" "http_port $eth0ip:3128 transparent"
+     visname=$( grep ^127.0.0.1 /etc/hosts | awk '{print $3}' | grep \. )
+     configfile_modify ''	"visible_hostname $visname"		"http_port $eth0ip:3128 transparent"	${sqcf}
 fi
 
-## the above patches original squid.conf like this
+## the above patches original squid.conf typically like this
 
 ## < acl our_networks src 192.168.0.0/24
 ## < http_access allow our_networks
@@ -305,13 +389,110 @@ fi
 
 ## vnstat
 ## Gather vnstat data for interfaces except eth0. (initializes database gathering if it isn't already in place. Updates if it is already there)
-NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST.*/\1/' -e '$!{h;d;}' -e x)
-## ... <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/'...   if they are up
 for (( i=1;i<=$NUMBER_OF_UPLINKS;i++)); do vnstat -u -i eth$i ; echo "vnstat running for $i" ; done
 
+if [[ -e /etc/lighttpd/lighttpd.conf ]]
+  then sed -i "s/^\$HTTP\[\"host\"\].*\"\([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\)\".*$/\$HTTP[\"host\"] =~ \"$eth0ip\" {/" /etc/lighttpd/lighttpd.conf
+fi
+
+if [[ -e /etc/openntpd/ntpd.conf ]] 
+  then ( grep -v ^# /etc/openntpd/ntpd.conf | grep ^'listen on' ) 2>&1 > /dev/null && \
+  sed -i "s/^listen on \([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\)$/listen on $eth0ip/" /etc/openntpd/ntpd.conf || \
+  sed -i "s/^#listen on ::1/#listen on ::1\nlisten on $eth0ip/" /etc/openntpd/ntpd.conf
+fi
+
+
+
+## dnsmasq
+dmcf='/etc/dnsmasq.conf'
+if_dns_nameservers=$eth0ip' 8.8.8.8 208.67.220.220'
+
+if [[ -e $dmcf ]] ; then 
+  cp ${dmcf} ${dmcf}_${ts}
+  configfile_modify 'eth0'					'interface='							'#interface='								$dmcf
+  configfile_modify ''						'read-ethers'							'#read-ethers'								$dmcf
+  configfile_modify ''						'dhcp-range=192.168.0.50,192.168.0.150,255.255.255.0,12h'	'#dhcp-range=192.168.0.50,192.168.0.150,255.255.255.0,12h'		$dmcf
+  configfile_modify "$eth0ip"					'dhcp-option=option:router,'					'#dhcp-option=option:router,1.2.3.4'					$dmcf
+  configfile_modify $(echo $if_dns_nameservers | tr ' ' ',')	'dhcp-option=option:dns-server,'				'#dhcp-option=option:domain-search,eng.apple.com,marketing.apple.com'	$dmcf
+  configfile_modify "$eth0ip"					'dhcp-option=option:ntp-server,'				'#dhcp-option=option:ntp-server,192.168.0.4,10.10.0.5'			$dmcf
+fi
 
 ##### ) | column -s, -t
 ## matches a bracket at the begining, but you'll have to disable read prompts.
 
+
+
+
+
+
+## /etc/network/interfaces
+
+
+
+netmask[0]=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^Netmask | awk '{print $2}')
+
+
+nwif='/etc/network/interfaces_test'
+eth_list=$(for (( i=0;i<=$NUMBER_OF_UPLINKS;i++)); do echo -n " eth$i"; done)
+
+configfile_modify_two	"# The primary network interface\n"		'allow-hotplug eth0'	"allow-hotplug${eth_list}"		$nwif
+configfile_modify_two	"allow-hotplug${eth_list}\n"			'iface eth0 inet dhcp'	'iface eth0 inet static'		$nwif
+configfile_modify_two	"iface eth0 inet static\n"			''			"  address $eth0ip"			$nwif
+configfile_modify_two	"  address $eth0ip\n"				''		        "  netmask ${netmask[0]}"		$nwif
+configfile_modify_two	"  netmask ${netmask[0]}\n"			''			"  dns-nameservers $if_dns_nameservers"	$nwif
+
+
+
+
+for (( i=1;i<=$NUMBER_OF_UPLINKS;i++ )); do
+  ethip=$(echo ${cidr_ip_eth[$i]} | cut -f1 -d/)
+  netmaskquad=$(ipcalc -n ${cidr_ip_eth[i]} | grep ^Netmask | awk '{print $2}')
+
+  if [[ "$i" == "1" ]] ; then
+    route_lines='ip route add default via $gateway dev $IFACE table $uplinkname ;\
+     ip route add default via $gateway'
+  else
+    route_lines='ip route add default via $gateway dev $IFACE table $uplinkname'
+  fi
+
+bigstring="iface eth$i inet static
+  address $ethip
+  netmask $netmaskquad
+  up serial=${i}0 ; uplinkname=uplink$i ; gateway=${gw_ip_eth[$i]} ; tablefile=/etc/iproute2/rt_tables"' ;\
+     if ! ( grep -v ^# $tablefile | awk "{print $2}" | grep -q -x "$uplinkname" ) ;\
+     then echo "$serial        $uplinkname" >> $tablefile ;\
+     fi ;\
+     '"$route_lines"'
+  dns-nameservers 8.8.8.8 208.67.220.220'
+
+
+
+  entry_ethi=$(grep "^iface eth$i" $nwif | wc -l)
+  ## do we have nothing yet?
+  if [[ "$entry_ethi" = 0 ]] ; then
+    echo "${bigstring}" >> $nwif
+  fi
+done
+
+
 echo "Reboot now, and everything should probably just work"
 
+
+
+ # current_entry=$(sed -n "/^iface eth$i inet static$/,/  dns-nameservers 8.8.8.8 208.67.220.220/p" $nwif)
+  ## match from ethx to dns-nameservers line  - but it is a greedy match (no parsimony in sed).
+#$(sed -n "/^iface eth1 inet static$/,/\n/p" /etc/network/interfaces_test)
+#sed -n "/^iface eth1 inet static$/,/\n/p" /etc/network/interfaces_test | sed -n '1h;1!H;${;g;'"s/iface \(eth1.*\)/$bigstring/"'g;p;}'
+
+
+
+####
+
+configfile_modify_two () {
+    string_before="$1" ; string_old="$2" ; string_new="$3" ; configfile_name="$4"
+    ( tail -1 $configfile_name | grep -v . ) || ( echo >> $configfile_name )
+    ( tail -2 $configfile_name |head -1 | grep -v . ) || ( echo >> $configfile_name )
+    # keep 2 blank lines at end of interfaces file so sed works nicely)
+    sed -i -n '1h;1!H;${;g;'"s/${string_before}${string_old}\n/${string_before}${string_old}${string_new}\n"'/g;p;}' $configfile_name
+    sed -i "s/${string_old}\(${string_new}\)/\1/" $nwif
+}

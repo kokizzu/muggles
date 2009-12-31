@@ -19,8 +19,13 @@ if [ "${IFACE}" == "eth0" ] ; then
   iptables -A INPUT -i lo -j ACCEPT
   iptables -A OUTPUT -o lo -j ACCEPT
 
+  # let LAN machines access gateway itself
   iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
   iptables -A INPUT -m state --state NEW -i eth0 -j ACCEPT
+
+  # slightly stricter is lines like:
+  #iptables -A INPUT -m state --state NEW -i eth0 -p ALL -m mac --mac-source 08:00:27:5A:FB:91 -j ACCEPT
+  # mac filtering - subvertable with mac spoofing. When testing use ip route flush all
 
   #iptables -t nat -A POSTROUTING -j MASQUERADE
   #don't set this - it would masq every interface to every other one. Instead, do it per output interface 
@@ -68,6 +73,10 @@ if [[ "${IFACE}" =~ eth[1-9][0-9]* ]] ; then
 
   # masq connections for the route to do with that interface
   wrap_iptables_line iptables -t nat -A POSTROUTING -o ${IFACE} -j MASQUERADE
+  
+  # slightly stricter is lines like:
+  #iptables -t nat -A POSTROUTING -m state --state NEW -o ${IFACE} -p ALL -m mac --mac-source 08:00:27:5A:FB:91 -j MASQUERADE
+  # mac filtering - subvertable with mac spoofing. (when testing, use ip route flush all)
   
   ## we assume one interface per ip
   interfaceip=$(ip -4 -o addr show dev ${IFACE} | sed -n 's/^.*inet \(.*\)\/.*$/\1/p')

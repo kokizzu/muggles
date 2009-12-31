@@ -1,6 +1,5 @@
 #!/bin/bash
 #set -x
-
 source /etc/muggles/showcurrent.conf
 
 
