@@ -90,6 +90,7 @@ for (( i=0;i<=$NUMBER_OF_UPLINKS;i++)); do
 done
 
 eth0ip=$(echo ${cidr_ip_eth[0]} | cut -f1 -d/)
+netmask[0]=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^Netmask | awk '{print $2}')
 
 ipcalc_hostmin=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^HostMin | awk '{print $2}')
 ipcalc_hostmax=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^HostMax | awk '{print $2}')
@@ -196,7 +197,6 @@ fi
 
 
 ## /etc/
-package_install etc/network/interfaces			/etc/network/interfaces
 package_install etc/network/if-up.d/masq_ipconf		/etc/network/if-up.d/masq_ipconf
 
 ## later, with debconf: user changes interface values
@@ -407,11 +407,13 @@ fi
 dmcf='/etc/dnsmasq.conf'
 if_dns_nameservers=$eth0ip' 8.8.8.8 208.67.220.220'
 
+#$dnsmasq_range_lower $dnsmasq_range_upper
+
 if [[ -e $dmcf ]] ; then 
   cp ${dmcf} ${dmcf}_${ts}
   configfile_modify 'eth0'					'interface='							'#interface='								$dmcf
   configfile_modify ''						'read-ethers'							'#read-ethers'								$dmcf
-  configfile_modify ''						'dhcp-range=192.168.0.50,192.168.0.150,255.255.255.0,12h'	'#dhcp-range=192.168.0.50,192.168.0.150,255.255.255.0,12h'		$dmcf
+  configfile_modify ''				"dhcp-range=$dnsmasq_range_lower,$dnsmasq_range_higher,${netmask[0]},12h"	'#dhcp-range=192.168.0.50,192.168.0.150,255.255.255.0,12h'		$dmcf
   configfile_modify "$eth0ip"					'dhcp-option=option:router,'					'#dhcp-option=option:router,1.2.3.4'					$dmcf
   configfile_modify $(echo $if_dns_nameservers | tr ' ' ',')	'dhcp-option=option:dns-server,'				'#dhcp-option=option:domain-search,eng.apple.com,marketing.apple.com'	$dmcf
   configfile_modify "$eth0ip"					'dhcp-option=option:ntp-server,'				'#dhcp-option=option:ntp-server,192.168.0.4,10.10.0.5'			$dmcf
@@ -427,13 +429,32 @@ fi
 
 ## /etc/network/interfaces
 
+nwif='/etc/network/interfaces'
+cp ${nwif} ${nwif}_${ts}
+
+configfile_modify_two () {
+    string_before="$1" ; string_old="$2" ; string_new="$3" ; configfile_name="$4"
+    ( tail -1 $configfile_name | grep -v . ) || ( echo >> $configfile_name )
+    ( tail -2 $configfile_name |head -1 | grep -v . ) || ( echo >> $configfile_name )
+    # keep 2 blank lines at end of interfaces file so sed works nicely)
+    sed -i -n '1h;1!H;${;g;'"s/${string_before}${string_old}\n/${string_before}${string_old}${string_new}\n"'/g;p;}' $configfile_name
+    sed -i "s/${string_old}\(${string_new}\)/\1/" $nwif
+}
 
 
-netmask[0]=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^Netmask | awk '{print $2}')
 
 
-nwif='/etc/network/interfaces_test'
 eth_list=$(for (( i=0;i<=$NUMBER_OF_UPLINKS;i++)); do echo -n " eth$i"; done)
+
+primary_interface='# The primary network interface
+allow-hotplug eth0'
+
+
+entry_eth0=$(grep "^iface eth0 $nwif | wc -l)
+## do we have nothing yet?
+if [[ "$entry_eth0" = 0 ]] ; then
+echo "$primary_interface" >> $nwif
+
 
 configfile_modify_two	"# The primary network interface\n"		'allow-hotplug eth0'	"allow-hotplug${eth_list}"		$nwif
 configfile_modify_two	"allow-hotplug${eth_list}\n"			'iface eth0 inet dhcp'	'iface eth0 inet static'		$nwif
@@ -485,14 +506,3 @@ echo "Reboot now, and everything should probably just work"
 #sed -n "/^iface eth1 inet static$/,/\n/p" /etc/network/interfaces_test | sed -n '1h;1!H;${;g;'"s/iface \(eth1.*\)/$bigstring/"'g;p;}'
 
 
-
-####
-
-configfile_modify_two () {
-    string_before="$1" ; string_old="$2" ; string_new="$3" ; configfile_name="$4"
-    ( tail -1 $configfile_name | grep -v . ) || ( echo >> $configfile_name )
-    ( tail -2 $configfile_name |head -1 | grep -v . ) || ( echo >> $configfile_name )
-    # keep 2 blank lines at end of interfaces file so sed works nicely)
-    sed -i -n '1h;1!H;${;g;'"s/${string_before}${string_old}\n/${string_before}${string_old}${string_new}\n"'/g;p;}' $configfile_name
-    sed -i "s/${string_old}\(${string_new}\)/\1/" $nwif
-}
