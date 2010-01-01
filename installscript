@@ -413,7 +413,7 @@ if [[ -e $dmcf ]] ; then
   cp ${dmcf} ${dmcf}_${ts}
   configfile_modify 'eth0'					'interface='							'#interface='								$dmcf
   configfile_modify ''						'read-ethers'							'#read-ethers'								$dmcf
-  configfile_modify ''				"dhcp-range=$dnsmasq_range_lower,$dnsmasq_range_higher,${netmask[0]},12h"	'#dhcp-range=192.168.0.50,192.168.0.150,255.255.255.0,12h'		$dmcf
+  configfile_modify ''				"dhcp-range=$dnsmasq_range_lower,$dnsmasq_range_upper,${netmask[0]},12h"	'#dhcp-range=192.168.0.50,192.168.0.150,255.255.255.0,12h'		$dmcf
   configfile_modify "$eth0ip"					'dhcp-option=option:router,'					'#dhcp-option=option:router,1.2.3.4'					$dmcf
   configfile_modify $(echo $if_dns_nameservers | tr ' ' ',')	'dhcp-option=option:dns-server,'				'#dhcp-option=option:domain-search,eng.apple.com,marketing.apple.com'	$dmcf
   configfile_modify "$eth0ip"					'dhcp-option=option:ntp-server,'				'#dhcp-option=option:ntp-server,192.168.0.4,10.10.0.5'			$dmcf
@@ -447,14 +447,15 @@ configfile_modify_two () {
 eth_list=$(for (( i=0;i<=$NUMBER_OF_UPLINKS;i++)); do echo -n " eth$i"; done)
 
 primary_interface='# The primary network interface
-allow-hotplug eth0'
+allow-hotplug eth0
+iface eth0 inet static'
 
 
-entry_eth0=$(grep "^iface eth0 $nwif | wc -l)
+entry_eth0=$(grep "^iface eth0 $nwif" | wc -l)
 ## do we have nothing yet?
 if [[ "$entry_eth0" = 0 ]] ; then
 echo "$primary_interface" >> $nwif
-
+fi
 
 configfile_modify_two	"# The primary network interface\n"		'allow-hotplug eth0'	"allow-hotplug${eth_list}"		$nwif
 configfile_modify_two	"allow-hotplug${eth_list}\n"			'iface eth0 inet dhcp'	'iface eth0 inet static'		$nwif
