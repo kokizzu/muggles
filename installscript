@@ -451,7 +451,7 @@ allow-hotplug eth0
 iface eth0 inet static'
 
 
-entry_eth0=$(grep "^iface eth0 $nwif" | wc -l)
+entry_eth0=$(grep "^iface eth0" $nwif | wc -l)
 ## do we have nothing yet?
 if [[ "$entry_eth0" = 0 ]] ; then
 echo "$primary_interface" >> $nwif
