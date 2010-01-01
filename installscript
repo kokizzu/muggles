@@ -10,10 +10,10 @@ for i in incron ipcalc iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid
 ## openssh-client and openssh-server are not needed but very useful
 do 
   if [[ ! $( dpkg -s $i | grep ^Status ) =~ ^"Status: install ok installed" ]]
-   then echo "Package $i missing." && packages_needed=1
+   then echo "Package $i missing." && missing_list="$i ""$missing_list" && packages_needed=1 
   fi
 done
-if ((packages_needed)) ;then echo "Need to install package(s) above. Fix and run again." && exit 0 ; fi
+if ((packages_needed)) ;then echo "Need to install $missing_list-  fix and run again." && exit 0 ; fi
 
 
 ## for squid at least:
@@ -23,6 +23,14 @@ if ((packages_needed)) ;then echo "Need to install package(s) above. Fix and run
   echo "Fix and run again"
   exit 0
 }
+
+
+function mkdir_if_not_there {
+if [[ ! -d $1 ]] ; then ( mkdir $1 && echo "created $1" ) ; fi
+}
+
+mkdir_if_not_there "/var/log/muggles"
+mkdir_if_not_there '/etc/muggles'
 
 
 
@@ -179,15 +187,6 @@ do
   
   whiptail --yesno "$lookover" 28 68 && input_lookover_input_ok=1
 done
-
-
-function mkdir_if_not_there {
-if [[ ! -d $1 ]] ; then ( mkdir $1 && echo "created $1" ) ; fi
-}
-
-mkdir_if_not_there "/var/log/muggles"
-mkdir_if_not_there '/etc/muggles'
-
 
 
 function package_install {
