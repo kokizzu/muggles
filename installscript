@@ -25,6 +25,7 @@ if ((packages_needed)) ;then echo "Need to install package(s) above. Fix and run
 }
 
 
+
 NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST.*/\1/' -e '$!{h;d;}' -e x)
 ## ... <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/'...   if they are up
 
@@ -53,103 +54,133 @@ You need to put in these IP addresses (in CIDR notation):
 3.  ...etc " 28 68
 
 
-for (( i=0;i<=$NUMBER_OF_UPLINKS;i++)); do
-  cidr_ip_eth[i]=$(</etc/muggles/cidr_ip_eth$i)
-  gw_ip_eth[i]=$(</etc/muggles/gw_ip_eth$i)
 
-
-
-  input_ok=0
-  until (( $input_ok )) ;
-  do
-    cidr_ip_eth[i]=$(
-                     whiptail --title "eth$i"\
-                              --inputbox  "ip/network (cidr notation) for eth$i. Eg: 192.168.$i.12/24"\
-                              10 80 ${cidr_ip_eth[i]} 2>&1 >/dev/tty
-                    )
-    echo ${cidr_ip_eth[i]} | grep -q -o '^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}/[0-9]\{1,2\}$' && input_ok=1
-  done
-  echo ${cidr_ip_eth[i]} >/etc/muggles/cidr_ip_eth$i
-
-
-
-  if (( i>0 )); then
-  input_ok=0
-  until (( $input_ok )) ;
-  do
-    gw_ip_eth[i]=$(
-                   whiptail --title "gateway used by ${cidr_ip_eth[i]}."\
-                   --inputbox  "gateway address (WITHOUT SUBNET SPECIFICATION) for eth$i."\
-                   10 80 ${gw_ip_eth[i]} 2>&1 >/dev/tty
-                  )
-    echo ${gw_ip_eth[i]} | grep -q -o '^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}$' && input_ok=1
-  done
-  echo ${gw_ip_eth[i]} >/etc/muggles/gw_ip_eth$i
-  fi
-
-done
-
-eth0ip=$(echo ${cidr_ip_eth[0]} | cut -f1 -d/)
-netmask[0]=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^Netmask | awk '{print $2}')
-
-ipcalc_hostmin=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^HostMin | awk '{print $2}')
-ipcalc_hostmax=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^HostMax | awk '{print $2}')
-
-input_dns_range_ok=0
-until (( $input_dns_range_ok ))
+input_lookover_input_ok=0
+until (( $input_lookover_input_ok )) ;
 do
-  input_ok=0
-  until (( $input_ok )) ;
-  do
-    dnsmasq_range_lower=$(
-                          whiptail --title "lower ip address in dhcp range (interface ip is $eth0ip)"\
-                          --inputbox  "lower ip address (WITHOUT SUBNET SPECIFICATION) in dhcp range (interface ip is $eth0ip)"\
-                          10 80 $dhsmasq_range_lower 2>&1 >/dev/tty
-                         )
-    echo $dnsmasq_range_lower | grep -q -o '^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}$' && input_ok=1
+  
+  
+  
+  for (( i=0;i<=$NUMBER_OF_UPLINKS;i++)); do
+    cidr_ip_eth[i]=$(</etc/muggles/cidr_ip_eth$i)
+    gw_ip_eth[i]=$(</etc/muggles/gw_ip_eth$i)
+  
+  
+  
+    input_ok=0
+    until (( $input_ok )) ;
+    do
+      cidr_ip_eth[i]=$(
+                       whiptail --title "eth$i"\
+                                --inputbox  "ip/network (cidr notation) for eth$i. Eg: 192.168.$i.12/24"\
+                                10 80 ${cidr_ip_eth[i]} 2>&1 >/dev/tty
+                      )
+      echo ${cidr_ip_eth[i]} | grep -q -o '^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}/[0-9]\{1,2\}$' && input_ok=1
+    done
+    echo ${cidr_ip_eth[i]} >/etc/muggles/cidr_ip_eth$i
+  
+  
+  
+    if (( i>0 )); then
+    input_ok=0
+    until (( $input_ok )) ;
+    do
+      gw_ip_eth[i]=$(
+                     whiptail --title "gateway used by ${cidr_ip_eth[i]}."\
+                     --inputbox  "gateway address (WITHOUT SUBNET SPECIFICATION) for eth$i."\
+                     10 80 ${gw_ip_eth[i]} 2>&1 >/dev/tty
+                    )
+      echo ${gw_ip_eth[i]} | grep -q -o '^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}$' && input_ok=1
+    done
+    echo ${gw_ip_eth[i]} >/etc/muggles/gw_ip_eth$i
+    fi
+  
   done
-
-  input_ok=0
-
-  until (( $input_ok ))
+  
+  eth0ip=$(echo ${cidr_ip_eth[0]} | cut -f1 -d/)
+  netmask[0]=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^Netmask | awk '{print $2}')
+  
+  ipcalc_hostmin=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^HostMin | awk '{print $2}')
+  ipcalc_hostmax=$(ipcalc -n ${cidr_ip_eth[0]} | grep ^HostMax | awk '{print $2}')
+  
+  input_dns_range_ok=0
+  until (( $input_dns_range_ok ))
   do
-    dnsmasq_range_upper=$(
-                          whiptail --title "upper ip address in dhcp range (interface ip is $eth0ip)"\
-                          --inputbox  "upper ip address (WITHOUT SUBNET SPECIFICATION) in dhcp range (interface ip is $eth0ip)"\
-                          10 80 $dhsmasq_range_upper 2>&1 >/dev/tty
-                         )
-    echo $dnsmasq_range_upper | grep -q -o '^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}$' && input_ok=1
+    dnsmasq_range_lower=$(</etc/muggles/dnsmasq_range_lower)
+    input_ok=0
+    until (( $input_ok )) ;
+    do
+      dnsmasq_range_lower=$(
+                            whiptail --title "lower ip address in dhcp range (interface ip is $eth0ip)"\
+                            --inputbox  "lower ip address (WITHOUT SUBNET SPECIFICATION) in dhcp range (interface ip is $eth0ip)"\
+                            10 80 $dnsmasq_range_lower 2>&1 >/dev/tty
+                           )
+      echo $dnsmasq_range_lower | grep -q -o '^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}$' && input_ok=1
+    done
+    echo $dnsmasq_range_lower >/etc/muggles/dnsmasq_range_lower
+  
+  
+  
+    dnsmasq_range_upper=$(</etc/muggles/dnsmasq_range_upper)
+    input_ok=0
+    until (( $input_ok ))
+    do
+      dnsmasq_range_upper=$(
+                            whiptail --title "upper ip address in dhcp range (interface ip is $eth0ip)"\
+                            --inputbox  "upper ip address (WITHOUT SUBNET SPECIFICATION) in dhcp range (interface ip is $eth0ip)"\
+                            10 80 $dnsmasq_range_upper 2>&1 >/dev/tty
+                           )
+      echo $dnsmasq_range_upper | grep -q -o '^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}$' && input_ok=1
+    done
+    echo $dnsmasq_range_upper >/etc/muggles/dnsmasq_range_upper
+  
+  
+    function decimate {
+                       OLDIFS=$IFS ; IFS="."
+                       read h1 h2 h3 h4 <<< "$1"
+                       echo $(( h1 * 256 * 256 * 256 + h2 * 256 * 256 + h3 * 256 + h4 ))
+                       IFS=$OLDIFS
+                      }
+  
+    eth0ip_decimal=$(decimate $eth0ip)
+    dnsmasq_range_lower_decimal=$(decimate $dnsmasq_range_lower)
+    dnsmasq_range_upper_decimal=$(decimate $dnsmasq_range_upper)
+  
+    ipcalc_hostmin_decimal=$(decimate $ipcalc_hostmin)  
+    ipcalc_hostmax_decimal=$(decimate $ipcalc_hostmax)  
+  
+    if [[ (( ipcalc_hostmin_decimal -gt dnsmasq_range_lower_decimal )) || \
+          (( ipcalc_hostmax_decimal -lt dnsmasq_range_upper_decimal )) || \
+          (( ipcalc_hostmin_decimal -gt dnsmasq_range_upper_decimal )) || \
+          (( ipcalc_hostmax_decimal -lt dnsmasq_range_lower_decimal )) ]]
+        then whiptail --msgbox "IP range must fit within subnet. Please fix range." 10 50
+          ## dnsmasq server can be inside dhcp range without conflict (only downside is that ip is no longer there)
+          ## so the check done by the two lines below is not needed.
+        ##elif  [[ (( eth0ip_decimal -ge dnsmasq_range_lower_decimal )) && (( eth0ip_decimal -le dnsmasq_range_upper_decimal )) ]]
+        ##  then whiptail --msgbox "IP of eth0 must be outside dhcp range. Please fix range." 10 50
+    else
+      input_dns_range_ok=1
+    fi
   done
-
-
-  function decimate {
-                     OLDIFS=$IFS ; IFS="."
-                     read h1 h2 h3 h4 <<< "$1"
-                     echo $(( h1 * 256 * 256 * 256 + h2 * 256 * 256 + h3 * 256 + h4 ))
-                     IFS=$OLDIFS
-                    }
-
-  eth0ip_decimal=$(decimate $eth0ip)
-  dnsmasq_range_lower_decimal=$(decimate $dnsmasq_range_lower)
-  dnsmasq_range_upper_decimal=$(decimate $dnsmasq_range_upper)
-
-  ipcalc_hostmin_decimal=$(decimate $ipcalc_hostmin)  
-  ipcalc_hostmax_decimal=$(decimate $ipcalc_hostmax)  
-
-  if [[ (( ipcalc_hostmin_decimal -gt dnsmasq_range_lower_decimal )) || \
-        (( ipcalc_hostmax_decimal -lt dnsmasq_range_upper_decimal )) || \
-        (( ipcalc_hostmin_decimal -gt dnsmasq_range_upper_decimal )) || \
-        (( ipcalc_hostmax_decimal -lt dnsmasq_range_lower_decimal )) ]]
-      then whiptail --msgbox "IP range must fit within subnet. Please fix range." 10 50
-        ## dnsmasq server can be inside dhcp range without conflict (only downside is that ip is no longer there)
-        ## so the check done by the two lines below is not needed.
-      ##elif  [[ (( eth0ip_decimal -ge dnsmasq_range_lower_decimal )) && (( eth0ip_decimal -le dnsmasq_range_upper_decimal )) ]]
-      ##  then whiptail --msgbox "IP of eth0 must be outside dhcp range. Please fix range." 10 50
-  else
-    input_dns_range_ok=1
-  fi
+  
+  
+  
+  lookover=$(
+  echo "Does this look ok?"
+  echo
+  echo "eth0: ${cidr_ip_eth[0]} (lan interface)"
+  echo "  lan range $dnsmasq_range_lower - $dnsmasq_range_upper"
+  for (( i=1;i<=$NUMBER_OF_UPLINKS;i++)); do
+    echo
+    echo "eth$i: ${cidr_ip_eth[i]} (uplink $i)"
+    echo "gateway: ${gw_ip_eth[i]} (gateway $i)"
+  done
+  )
+  
+  whiptail --yesno "$lookover" 28 68 && input_lookover_input_ok=1
 done
 
+exit
 
 ###(
 ## matches column line at end, for pretty output but you'll have to disable read prompts for all code between brackets
