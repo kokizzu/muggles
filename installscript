@@ -180,11 +180,6 @@ do
   whiptail --yesno "$lookover" 28 68 && input_lookover_input_ok=1
 done
 
-exit
-
-###(
-## matches column line at end, for pretty output but you'll have to disable read prompts for all code between brackets
-
 
 function mkdir_if_not_there {
 if [[ ! -d $1 ]] ; then ( mkdir $1 && echo "created $1" ) ; fi
@@ -242,8 +237,6 @@ package_install etc/muggles/showcurrent.conf		/etc/muggles/showcurrent.conf
 package_install etc/lighttpd/lighttpd.conf		/etc/lighttpd/lighttpd.conf
 lighty-enable-mod cgi ; /etc/init.d/lighttpd restart
 
-## package_install etc/squid/squid.conf			/etc/squid/squid.conf
-## not needed. handled from existing squid setup, see later
 
 ## /usr/local/sbin
 package_install usr/local/sbin/pinglogger		/usr/local/sbin/pinglogger
@@ -442,20 +435,13 @@ if_dns_nameservers=$eth0ip' 8.8.8.8 208.67.220.220'
 
 if [[ -e $dmcf ]] ; then 
   cp ${dmcf} ${dmcf}_${ts}
-  configfile_modify 'eth0'					'interface='							'#interface='								$dmcf
-  configfile_modify ''						'read-ethers'							'#read-ethers'								$dmcf
-  configfile_modify ''				"dhcp-range=$dnsmasq_range_lower,$dnsmasq_range_upper,${netmask[0]},12h"	'#dhcp-range=192.168.0.50,192.168.0.150,255.255.255.0,12h'		$dmcf
-  configfile_modify "$eth0ip"					'dhcp-option=option:router,'					'#dhcp-option=option:router,1.2.3.4'					$dmcf
-  configfile_modify $(echo $if_dns_nameservers | tr ' ' ',')	'dhcp-option=option:dns-server,'				'#dhcp-option=option:domain-search,eng.apple.com,marketing.apple.com'	$dmcf
-  configfile_modify "$eth0ip"					'dhcp-option=option:ntp-server,'				'#dhcp-option=option:ntp-server,192.168.0.4,10.10.0.5'			$dmcf
+  configfile_modify 'eth0'								'interface='				'#interface='								$dmcf
+  configfile_modify ''									'read-ethers'				'#read-ethers'								$dmcf
+  configfile_modify "$dnsmasq_range_lower,$dnsmasq_range_upper,${netmask[0]},12h"	'dhcp-range='				'#dhcp-range=192.168.0.50,192.168.0.150,255.255.255.0,12h'		$dmcf
+  configfile_modify "$eth0ip"								'dhcp-option=option:router,'		'#dhcp-option=option:router,1.2.3.4'					$dmcf
+  configfile_modify $(echo $if_dns_nameservers | tr ' ' ',')				'dhcp-option=option:dns-server,'	'#dhcp-option=option:domain-search,eng.apple.com,marketing.apple.com'	$dmcf
+  configfile_modify "$eth0ip"								'dhcp-option=option:ntp-server,'	'#dhcp-option=option:ntp-server,192.168.0.4,10.10.0.5'			$dmcf
 fi
-
-##### ) | column -s, -t
-## matches a bracket at the begining, but you'll have to disable read prompts.
-
-
-
-
 
 
 ## /etc/network/interfaces
@@ -527,14 +513,5 @@ bigstring="iface eth$i inet static
   fi
 done
 
-
 echo "Reboot now, and everything should probably just work"
-
-
-
- # current_entry=$(sed -n "/^iface eth$i inet static$/,/  dns-nameservers 8.8.8.8 208.67.220.220/p" $nwif)
-  ## match from ethx to dns-nameservers line  - but it is a greedy match (no parsimony in sed).
-#$(sed -n "/^iface eth1 inet static$/,/\n/p" /etc/network/interfaces_test)
-#sed -n "/^iface eth1 inet static$/,/\n/p" /etc/network/interfaces_test | sed -n '1h;1!H;${;g;'"s/iface \(eth1.*\)/$bigstring/"'g;p;}'
-
 
