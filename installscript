@@ -445,42 +445,26 @@ fi
 
 ## /etc/network/interfaces
 
+eth_list=$(for (( i=0;i<=$NUMBER_OF_UPLINKS;i++)); do echo -n " eth$i"; done)
 nwif='/etc/network/interfaces'
 cp ${nwif} ${nwif}_${ts}
 
-configfile_modify_two () {
-    string_before="$1" ; string_old="$2" ; string_new="$3" ; configfile_name="$4"
-    ( tail -1 $configfile_name | grep -v . ) || ( echo >> $configfile_name )
-    ( tail -2 $configfile_name |head -1 | grep -v . ) || ( echo >> $configfile_name )
-    # keep 2 blank lines at end of interfaces file so sed works nicely)
-    sed -i -n '1h;1!H;${;g;'"s/${string_before}${string_old}\n/${string_before}${string_old}${string_new}\n"'/g;p;}' $configfile_name
-    sed -i "s/${string_old}\(${string_new}\)/\1/" $nwif
-}
+echo "# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
 
+# The loopback network interface
+auto lo
+iface lo inet loopback
 
+# The primary network interface
+allow-hotplug${eth_list}
 
+iface eth0 inet static
+  address $eth0ip
+  netmask ${netmask[0]}
+  dns-nameservers $if_dns_nameservers
 
-eth_list=$(for (( i=0;i<=$NUMBER_OF_UPLINKS;i++)); do echo -n " eth$i"; done)
-
-primary_interface='# The primary network interface
-allow-hotplug eth0
-iface eth0 inet static'
-
-
-entry_eth0=$(grep "^iface eth0" $nwif | wc -l)
-## do we have nothing yet?
-if [[ "$entry_eth0" = 0 ]] ; then
-echo "$primary_interface" >> $nwif
-fi
-
-configfile_modify_two	"# The primary network interface\n"		'allow-hotplug eth0'	"allow-hotplug${eth_list}"		$nwif
-configfile_modify_two	"allow-hotplug${eth_list}\n"			'iface eth0 inet dhcp'	'iface eth0 inet static'		$nwif
-configfile_modify_two	"iface eth0 inet static\n"			''			"  address $eth0ip"			$nwif
-configfile_modify_two	"  address $eth0ip\n"				''		        "  netmask ${netmask[0]}"		$nwif
-configfile_modify_two	"  netmask ${netmask[0]}\n"			''			"  dns-nameservers $if_dns_nameservers"	$nwif
-
-
-
+" > $nwif
 
 for (( i=1;i<=$NUMBER_OF_UPLINKS;i++ )); do
   ethip=$(echo ${cidr_ip_eth[$i]} | cut -f1 -d/)
@@ -504,12 +488,8 @@ bigstring="iface eth$i inet static
   dns-nameservers 8.8.8.8 208.67.220.220'
 
 
+  echo "${bigstring}" >> $nwif
 
-  entry_ethi=$(grep "^iface eth$i" $nwif | wc -l)
-  ## do we have nothing yet?
-  if [[ "$entry_ethi" = 0 ]] ; then
-    echo "${bigstring}" >> $nwif
-  fi
 done
 
 echo "Reboot now, and everything should probably just work"
