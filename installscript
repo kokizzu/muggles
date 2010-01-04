@@ -463,7 +463,6 @@ iface eth0 inet static
   address $eth0ip
   netmask ${netmask[0]}
   dns-nameservers $if_dns_nameservers
-
 " > $nwif
 
 for (( i=1;i<=$NUMBER_OF_UPLINKS;i++ )); do
@@ -477,7 +476,7 @@ for (( i=1;i<=$NUMBER_OF_UPLINKS;i++ )); do
     route_lines='ip route add default via $gateway dev $IFACE table $uplinkname'
   fi
 
-bigstring="iface eth$i inet static
+  bigstring="iface eth$i inet static
   address $ethip
   netmask $netmaskquad
   up serial=${i}0 ; uplinkname=uplink$i ; gateway=${gw_ip_eth[$i]} ; tablefile=/etc/iproute2/rt_tables"' ;\
@@ -485,8 +484,8 @@ bigstring="iface eth$i inet static
      then echo "$serial        $uplinkname" >> $tablefile ;\
      fi ;\
      '"$route_lines"'
-  dns-nameservers 8.8.8.8 208.67.220.220'
-
+  dns-nameservers 8.8.8.8 208.67.220.220
+'
 
   echo "${bigstring}" >> $nwif
 
