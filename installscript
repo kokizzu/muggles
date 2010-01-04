@@ -13,7 +13,17 @@ do
    then echo "Package $i missing." && missing_list="$i ""$missing_list" && packages_needed=1 
   fi
 done
-if ((packages_needed)) ;then echo "Need to install $missing_list-  fix and run again." && exit 0 ; fi
+
+if ((packages_needed))
+  then echo "Need to aptitude install $missing_list. Go ahead? [y]"
+       read yesno
+       if [[ $yesno =~ (n|N) ]]
+         then exit 0
+       else
+         aptitude install $missing_list
+       fi
+fi
+
 
 
 ## for squid at least:
@@ -447,7 +457,6 @@ fi
 
 eth_list=$(for (( i=0;i<=$NUMBER_OF_UPLINKS;i++)); do echo -n " eth$i"; done)
 nwif='/etc/network/interfaces'
-cp ${nwif} ${nwif}_${ts}
 
 echo "# This file describes the network interfaces available on your system
 # and how to activate them. For more information, see interfaces(5).
@@ -463,7 +472,7 @@ iface eth0 inet static
   address $eth0ip
   netmask ${netmask[0]}
   dns-nameservers $if_dns_nameservers
-" > $nwif
+" > /tmp/interfaces_$ts
 
 for (( i=1;i<=$NUMBER_OF_UPLINKS;i++ )); do
   ethip=$(echo ${cidr_ip_eth[$i]} | cut -f1 -d/)
@@ -487,9 +496,22 @@ for (( i=1;i<=$NUMBER_OF_UPLINKS;i++ )); do
   dns-nameservers 8.8.8.8 208.67.220.220
 '
 
-  echo "${bigstring}" >> $nwif
+  echo "${bigstring}" >> /tmp/interfaces_$ts
+
+  if [[ -n $(diff /tmp/interfaces_$ts $nwif) ]]
+  then echo "$nwif is going to be overwritten. A timestamped backup will go in ${nwif}_${ts}. Go ahead? [y]"
+       read yesno
+       if [[ $yesno =~ (n|N) ]]
+         then
+            echo "$nwif unchanged. The networking will probably be broken after reboot" ; exit 0
+         else
+            cp ${nwif} ${nwif}_${ts}
+            mv /tmp/interfaces_${ts} ${nwif}
+       fi
+  fi
 
 done
 
-echo "Reboot now, and everything should probably just work"
+
+echo "Reboot now, and if you did everything right it should all just work"
 
