@@ -38,19 +38,17 @@ The 8-fold path to a higher uplink state...
 
     * When it prompts you for package selection near the end of the installation, you can drop the selection "standard" so that it is truly a minimal installation. 
 
-2. aptitude install incron ipcalc iproute dnsmasq lighttpd sudo nmap logrotate vnstat squid resolvconf openntpd ntpdate mtr-tiny dnsutils
+2. Unpack the tgz file in, say /root/muggles_source.
 
-    * If you don't have them already, you will probably want to aptitude install openssh-client openssh-server. They are useful extras, but not necessary. Go on, just install them too. 
+3. To install, run ./installscript.
 
-3. Unpack the tgz file in, say /root/muggles_source.
-
-4. To install, run ./installscript. Enter the static ip addresses for the lan, uplinks, and gateways at the prompts.
+4. Enter the static ip addresses for the lan, uplinks, and gateways at the prompts.
 
 5. Change/add mac addresses of the lan machines to /etc/ethers (Replace alan, blan etc.)
 
 6. Connect up alan (or rather, its replacement). You already entered the mac address for this machine in the previous step. If you have a normal modern OS, then the machine will simply auto-configure and get its network; dns and time settings from the muggles box.
 
-7. Then point your browser to http://192.168.0.12 (or whatever you've changed it to in step 4)
+7. Then point your browser to http://192.168.0.12 (or whatever you've changed the muggles box ip address to in step 4)
 
 8. admire the pre-millennial web interface
 
