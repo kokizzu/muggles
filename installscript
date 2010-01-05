@@ -436,12 +436,12 @@ if [[ -e $lhtc ]]
   ## bug: #560837 workaround
 fi
 
-/etc/init.d/lighthttpd restart
+/etc/init.d/lighttpd restart
 
 
 ## openntpd
 ntpc='/etc/openntpd/ntpd.conf'
-if [[ -e $ntpc]] 
+if [[ -e $ntpc ]] 
   then ( grep -v ^# $ntpc | grep ^'listen on' ) 2>&1 > /dev/null && \
   sed -i "s/^listen on \([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\)$/listen on $eth0ip/" $ntpc || \
   sed -i "s/^#listen on ::1/#listen on ::1\nlisten on $eth0ip/" $ntpc
@@ -511,20 +511,19 @@ for (( i=1;i<=$NUMBER_OF_UPLINKS;i++ )); do
 
   echo "${bigstring}" >> /tmp/interfaces_$ts
 
-  if [[ -n $(diff /tmp/interfaces_$ts $nwif) ]]
-  then echo "$nwif is going to be overwritten. A timestamped backup will go in ${nwif}_${ts}. Go ahead? [y]"
-       read yesno
-       if [[ $yesno =~ (n|N) ]]
-         then
-            echo "$nwif unchanged. The networking will probably be broken after reboot" ; exit 0
-         else
-            cp ${nwif} ${nwif}_${ts}
-            mv /tmp/interfaces_${ts} ${nwif}
-       fi
-  fi
-
 done
 
+if [[ -n $(diff /tmp/interfaces_$ts $nwif) ]]
+then echo "$nwif is going to be overwritten. A timestamped backup will go in ${nwif}_${ts}. Go ahead? [y]"
+  read yesno
+  if [[ $yesno =~ (n|N) ]]
+    then
+       echo "$nwif unchanged. The networking will probably be broken after reboot" ; exit 0
+    else
+       cp ${nwif} ${nwif}_${ts}
+       mv /tmp/interfaces_${ts} ${nwif}
+  fi
+fi
 
 echo "Reboot now, and if you did everything right it should all just work"
 
