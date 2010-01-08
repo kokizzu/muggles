@@ -3,7 +3,7 @@
 #set -x -v
 PATH=/sbin:$PATH
 
-source /etc/muggles/pinglogger_conf
+source /etc/muggles/pinglogger.conf
 
 
 ## set up routing to force pings only via their interfaces from this machine (does not apply to lan machines)
