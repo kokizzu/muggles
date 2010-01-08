@@ -235,13 +235,15 @@ fi
 
 
 ## /etc/
-package_install etc/network/if-up.d/masq_ipconf		/etc/network/if-up.d/masq_ipconf
+package_install etc/network/if-pre-up.d/masq_ipconf		/etc/network/if-pre-up.d/masq_ipconf
 
 ## later, with debconf: user changes interface values
-##  then have to run a lot of stuff again including some crontab entries 
 
 package_install etc/ethers				/etc/ethers
 package_install etc/logrotate.d/muggles			/etc/logrotate.d/muggles
+package_install etc/init.d/mugglesinit			/etc/init.d/mugglesinit
+update-rc.d mugglesinit defaults 41
+
 package_install etc/muggles/forced_uplink.conf		/etc/muggles/forced_uplink.conf
 package_install etc/muggles/pinglogger.conf		/etc/muggles/pinglogger.conf
 package_install etc/muggles/rulerunner.conf		/etc/muggles/rulerunner.conf
@@ -279,43 +281,6 @@ package_install var/www/shutdown.html			/var/www/shutdown.html
 package_install var/www/switched.html			/var/www/switched.html
 
 chown www-data.www-data /var/www/*
-
-
-## cron
-
-## need to check pre existence
-
-## add these lines
-
-ARRAY=(\
-'@reboot       /etc/init.d/openntpd stop && /usr/sbin/ntpdate-debian && /etc/init.d/openntpd start' \
-'@reboot       >/var/lib/misc/dnsmasq.leases.1 ; /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases' \
-'@reboot       ( pgrep -u proxy ) 2>&1>/dev/null && /sbin/iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128' \
-'@reboot       sleep 20; /usr/local/sbin/defaultrouting' \
-'@reboot       sleep 30; aptitude update ; aptitude -q -s -y safe-upgrade | grep -A1 "The following packages will be upgraded:" | tail -1 | sed "s/^  //" > /var/log/muggles/secupdates' \
-'@reboot       sleep 40; /usr/local/sbin/pinglogger'\
-)
-
-
-ELEMENTS=${#ARRAY[@]}
-
-for (( i=0;i<$ELEMENTS;i++ )); do
-if ( grep -v ^# /var/spool/cron/crontabs/root  | grep ^"${ARRAY[${i}]}$" 2>&1 >/dev/null )
-   then echo "have a matching line for array element $i in crontab, so changing nothing" 
-   else
-   echo "installing array element $i into crontab"
-   ( crontab -l
-cat<<crontab_add
-${ARRAY[${i}]}
-crontab_add
-) | crontab -
-fi
-done
-
-( crontab -l | tail -1 | grep -v . ) || ( echo "cron needs a blank line at end, so adding it" 
-   ( crontab -l ; echo ) | crontab -
-)
-
 
 
 ## incron
