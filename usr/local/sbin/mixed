@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #set -x -v
 
 ## randomly shuffle uplinks to users

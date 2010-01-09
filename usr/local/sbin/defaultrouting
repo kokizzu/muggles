@@ -3,12 +3,13 @@
 #set -x -v
 PATH=/sbin:$PATH
 
-source /etc/muggles/pinglogger.conf
+. /etc/muggles/pinglogger.conf
 
 
 ## set up routing to force pings only via their interfaces from this machine (does not apply to lan machines)
 
-for ((i=1; i<=$NUMBER_OF_UPLINKS; i++)) ; do
+#for ((i=1; i<=$NUMBER_OF_UPLINKS; i++)) ; do
+for i in $(seq 1 $NUMBER_OF_UPLINKS) ; do
   gateway_i=$(ip route show dev eth$i table uplink$i | grep ^default | cut -f3 -d" ")
 
   remote_ping_uplink_i=${remote_ping_uplinkk_ip[i-1]}

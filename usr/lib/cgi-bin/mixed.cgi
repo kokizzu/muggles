@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 sudo /usr/local/sbin/mixed
 cat<<MIXEDUP
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">

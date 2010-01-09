@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 LANGATEWAYIP=`ip -4 -o addr show eth0 | sed -n 's/^.*inet \([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\).*$/\1/p'`
 

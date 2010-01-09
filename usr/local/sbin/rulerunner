@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #set -x -v
 
 ## dynamic rules for machines on lan decide what uplink they will use when leases file changes
