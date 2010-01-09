@@ -22,29 +22,31 @@ case "$1" in
         echo -n "Starting mugglesinit:"
 
         # lenny: squid s30. Transparent squid redirection after you get your squid on.
-        echo -n " Starting squid redirection..."
+        echo -n " Starting squid redirection:"
         ( pgrep -u proxy squid 2>&1 > /dev/null ) && \
           if (iptables -L -v -t nat | grep -q -x "^ *0 *0 *REDIRECT *tcp *\-\- *eth0 *any *anywhere *anywhere *tcp dpt:www redir ports 3128 *$")
-            then echo -n " Squid redirection already in place, so doing nothing."
-            else /sbin/iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128 && echo -n " done."
+            then echo -n " Squid redirection already in place, so will do nothing..."
+            else /sbin/iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128 && echo -n " doing nat table prerouting chain redirects to port 3128 for eth0 for Squid..."
           fi
+        echo -n " done."
 
-        echo -n " Starting interfaces check: "
+        echo -n " Starting interfaces check:"
         links_down=$(ip link show | grep eth[0-9][0-9]* | grep DOWN | cut -f2 -d: | tr -d "\n")
         error_count=1 ; maximum_tries=20
-        until ( [[ -z $links_down ]] || [ $error_count -eq $maximum_tries ] )
-        do echo -n " Waiting for$links_down to come up..."
-          sleep 1 ; ((error_count++))
+        ## maximum tries - 1 actually
+        until ( [ -z "$links_down" ] || [ $error_count -eq $maximum_tries ] )
+        do echo -n " waiting for$links_down to come up..."
+          sleep 1 ; error_count=$((error_count+1))
           links_down=$(ip link show | grep eth[0-9][0-9]* | grep DOWN | cut -f2 -d: | tr -d "\n")
         done
 
         if [ $error_count -eq $maximum_tries ]
-          then echo -n " maximum tries exceeded."
+          then echo -n " ERROR: maximum tries exceeded."
           else echo -n " done."
         fi
 
         # lenny: networking s40. Choose one of working gateways for default route for this box.
-        ( pgrep -u root -f /usr/local/sbin/defaultrouting 2>&1 > /dev/null ) ||  ( ( /usr/local/sbin/defaultrouting & ) && echo -n " Defaultrouting process is running." )
+        ( pgrep -u root -f /usr/local/sbin/defaultrouting 2>&1 > /dev/null ) ||  ( ( /usr/local/sbin/defaultrouting & ) && echo -n " defaultrouting process is running." )
 
         # lenny: openntpd s20. Aim is to set time right on this box without interfering with ntpdate defaults
         ( ( /etc/init.d/openntpd stop && /usr/sbin/ntpdate-debian && /etc/init.d/openntpd start ) 2>&1 >/dev/null ) && (echo -n " ntpd stopped, time set, and ntpd restarted." )
@@ -55,14 +57,14 @@ case "$1" in
         # >/var/lib/misc/dnsmasq.leases.1 ; touch /var/lib/misc/dnsmasq.leases
 
         # lenny: networking s40. Get a list of updates for muggles
-        echo -n " starting aptitude stuff..."
+        echo -n " Starting aptitude stuff:"
         ( aptitude update ; aptitude -q -s -y safe-upgrade | grep -A1 "The following packages will be upgraded:" | tail -1 | sed "s/^  //" > /var/log/muggles/secupdates ) 2>&1 > /dev/null
         echo -n " done."
 
         # lenny: networking s40. Get logging pings if not already doing it.
         ( pgrep -u root -f /usr/local/sbin/pinglogger 2>&1 > /dev/null ) || ( ( /usr/local/sbin/pinglogger & ) && echo -n " pinglogger process is running." )
 
-        echo " mugglesinit done"
+        echo " mugglesinit done."
 	;;
   restart|reload|force-reload)
 	echo "Error: argument '$1' not supported" >&2
