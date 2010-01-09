@@ -16,59 +16,53 @@ PATH=/sbin:$PATH
 
 test -f /usr/local/sbin/defaultrouting || exit 0
 
-logon=0
-
-log ()
-{ if [[ "${logon}" == "1" ]] ;
-    then echo "$(date): $1" >> /var/log/muggles/mugglesinit.log
-  fi
-## $1 here is not the argument to main, but the argument to log. Bash is funny that way.
-}
-
-
 case "$1" in
   start|"")
 
-        echo "Starting mugglesinit: "
+        echo -n "Starting mugglesinit:"
 
         # lenny: squid s30. Transparent squid redirection after you get your squid on.
+        echo -n " Starting squid redirection..."
         ( pgrep -u proxy squid 2>&1 > /dev/null ) && \
           if (iptables -L -v -t nat | grep -q -x "^ *0 *0 *REDIRECT *tcp *\-\- *eth0 *any *anywhere *anywhere *tcp dpt:www redir ports 3128 *$")
-            then echo "squid redirection already in place, so doing nothing"  && log "squid redirection already in place, so doing nothing"
-            else /sbin/iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128 && log "did /sbin/iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128"
+            then echo -n " Squid redirection already in place, so doing nothing."
+            else /sbin/iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128 && echo -n " done."
           fi
 
+        echo -n " Starting interfaces check: "
         links_down=$(ip link show | grep eth[0-9][0-9]* | grep DOWN | cut -f2 -d: | tr -d "\n")
         error_count=1 ; maximum_tries=20
         until ( [[ -z $links_down ]] || [ $error_count -eq $maximum_tries ] )
-        do echo "waiting for$links_down to come up"
-          log "waiting for$links_down to come up"
+        do echo -n " Waiting for$links_down to come up..."
           sleep 1 ; ((error_count++))
           links_down=$(ip link show | grep eth[0-9][0-9]* | grep DOWN | cut -f2 -d: | tr -d "\n")
         done
 
         if [ $error_count -eq $maximum_tries ]
-          then echo "maximum tries exceeded. Continuing..."
-          else echo "interfaces up"
+          then echo -n " maximum tries exceeded."
+          else echo -n " done."
         fi
 
         # lenny: networking s40. Choose one of working gateways for default route for this box.
-        ( pgrep -u root -f /usr/local/sbin/defaultrouting 2>&1 > /dev/null ) ||  ( ( /usr/local/sbin/defaultrouting & ) && log "defaultrouting started" )
+        ( pgrep -u root -f /usr/local/sbin/defaultrouting 2>&1 > /dev/null ) ||  ( ( /usr/local/sbin/defaultrouting & ) && echo -n " Defaultrouting process is running." )
 
         # lenny: openntpd s20. Aim is to set time right on this box without interfering with ntpdate defaults
-        /etc/init.d/openntpd stop && /usr/sbin/ntpdate-debian && /etc/init.d/openntpd start  && log "ntpd stopped, time set, and ntpd restarted"
+        ( ( /etc/init.d/openntpd stop && /usr/sbin/ntpdate-debian && /etc/init.d/openntpd start ) 2>&1 >/dev/null ) && (echo -n " ntpd stopped, time set, and ntpd restarted." )
 
 	# lenny: incron s20, dnsmasq s15. Should run incrontab rulerunner entry (with a .leases touch instead of explicitly ?)
-        >/var/lib/misc/dnsmasq.leases.1 && log "dnsmasq.leases.1 zeroed" ; /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases && log "rulerunner run using dnsmasqleases"
+        >/var/lib/misc/dnsmasq.leases.1 && echo -n " dnsmasq.leases.1 zeroed."
+        /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases && echo -n " rulerunner run using dnsmasqleases."
         # >/var/lib/misc/dnsmasq.leases.1 ; touch /var/lib/misc/dnsmasq.leases
 
         # lenny: networking s40. Get a list of updates for muggles
-        log "starting aptitude stuff"
-        aptitude update ; aptitude -q -s -y safe-upgrade | grep -A1 "The following packages will be upgraded:" | tail -1 | sed "s/^  //" > /var/log/muggles/secupdates
-        log "finished aptitude stuff"
+        echo -n " starting aptitude stuff..."
+        ( aptitude update ; aptitude -q -s -y safe-upgrade | grep -A1 "The following packages will be upgraded:" | tail -1 | sed "s/^  //" > /var/log/muggles/secupdates ) 2>&1 > /dev/null
+        echo -n " done."
 
         # lenny: networking s40. Get logging pings if not already doing it.
-        ( pgrep -u root -f /usr/local/sbin/pinglogger 2>&1 > /dev/null ) || ( ( /usr/local/sbin/pinglogger & ) && log "pinglogger started" )
+        ( pgrep -u root -f /usr/local/sbin/pinglogger 2>&1 > /dev/null ) || ( ( /usr/local/sbin/pinglogger & ) && echo -n " pinglogger process is running." )
+
+        echo " mugglesinit done"
 	;;
   restart|reload|force-reload)
 	echo "Error: argument '$1' not supported" >&2
