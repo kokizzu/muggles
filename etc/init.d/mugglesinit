@@ -55,7 +55,7 @@ case "$1" in
         ( pgrep -u root -f /usr/local/sbin/defaultrouting 2>&1 > /dev/null ) || ( ( /usr/local/sbin/defaultrouting & ) && ( ($verbose_mugglesinit) && echo -n ' defaultrouting process is running.' || echo -n '.' ))
 
         # lenny: openntpd s20. Aim is to set time right on this box without interfering with ntpdate defaults
-        ( ( /etc/init.d/openntpd stop && /usr/sbin/ntpdate-debian && /etc/init.d/openntpd start ) 2>&1 >/dev/null ) && ( ($verbose_mugglesinit) && echo -n ' ntpd stopped, time set, and ntpd restarted.' || echo -n '.' )
+        ( ( /etc/init.d/openntpd stop 2> /dev/null && /usr/sbin/ntpdate-debian && /etc/init.d/openntpd start ) 2>&1 >/dev/null ) && ( ($verbose_mugglesinit) && echo -n ' ntpd stopped, time set, and ntpd restarted.' || echo -n '.' )
 
 	# lenny: incron s20, dnsmasq s15. Should run incrontab rulerunner entry (with a .leases touch instead of explicitly ?)
         >/var/lib/misc/dnsmasq.leases.1 && ( ($verbose_mugglesinit) && echo -n ' dnsmasq.leases.1 zeroed.' || echo -n '.' )
