@@ -30,7 +30,7 @@ log "------------------------------------------"
 log "dnsmasq leases.1 is about to change from :"
 while read line; do log "$line"; done < $dleases_path.1
 log "dnsmasq leases.2 is about to change from :"
-while read line; do log "$line"; done < $dleases_path.2
+if [[ -e $dleases_path ]] ; then while read line; do log "$line"; done < $dleases_path.2 ; fi
 log "------------------------------------------"
 
 
