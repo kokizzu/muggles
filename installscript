@@ -471,7 +471,7 @@ for (( i=1;i<=$NUMBER_OF_UPLINKS;i++ )); do
   address $ethip
   netmask $netmaskquad
   up serial=${i}0 ; uplinkname=uplink$i ; gateway=${gw_ip_eth[$i]} ; tablefile=/etc/iproute2/rt_tables"' ;\
-     if ! ( grep -v ^# $tablefile | awk "{print $2}" | grep -q -x "$uplinkname" ) ;\
+     if ! ( grep -v ^# $tablefile | grep -q -x "^$serial        $uplinkname$" ) ;\
      then echo "$serial        $uplinkname" >> $tablefile ;\
      fi ;\
      '"$route_lines"'
