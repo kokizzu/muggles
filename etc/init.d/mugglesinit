@@ -24,7 +24,7 @@ test -f /usr/local/sbin/defaultrouting || exit 0
 
 case "$1" in
   start|"")
-        echo -n 'Starting mugglesinit:'
+        echo -n 'Setting up muggles'
 
         # lenny: squid s30. Transparent squid redirection after you get your squid on.
         ($verbose_mugglesinit) && echo -n ' Starting squid redirection:' || echo -n '.'
@@ -71,7 +71,7 @@ case "$1" in
         # lenny: networking s40. Get logging pings if not already doing it.
         ( pgrep -u root -f /usr/local/sbin/pinglogger 2>&1 > /dev/null ) || ( ( /usr/local/sbin/pinglogger & ) && ( ($verbose_mugglesinit) && echo -n ' pinglogger process started...' || echo -n '.' ))
 
-        echo " mugglesinit."
+        echo "done."
 	;;
   restart|reload|force-reload)
 	echo "Error: argument '$1' not supported" >&2
