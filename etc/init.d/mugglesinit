@@ -1,70 +1,77 @@
 #! /bin/sh
 ### BEGIN INIT INFO
 # Provides:          mugglesinit
-# Required-Start:    dnsmasq, openntpd, squid, networking, incron
-# Required-Stop:
-# Default-Start:     S
-# Default-Stop:
+# Required-Start:    $time $network $named $remote_fs incron dnsmasq networking openntpd
+# Should-Start:      squid
+# Required-Stop:     $time $network $named $remote_fs incron dnsmasq networking openntpd
+# Should-Stop:       squid
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
 # Short-Description: inititialize muggles
 # Description:       wipe dnsmasq.leases.1, start rulerunner, run ntpdate-debian,
 #                    run defaultrouting, run redirection if squid is running,
 #                    run aptitude, run pinglogger
 ### END INIT INFO
 
+
 PATH=/sbin:$PATH
 
+. /lib/lsb/init-functions
 
+verbose_mugglesinit=false
+#verbose_mugglesinit=true
 test -f /usr/local/sbin/defaultrouting || exit 0
 
 case "$1" in
   start|"")
-
-        echo -n "Starting mugglesinit:"
+        echo -n 'Starting mugglesinit:'
 
         # lenny: squid s30. Transparent squid redirection after you get your squid on.
-        echo -n " Starting squid redirection:"
+        ($verbose_mugglesinit) && echo -n ' Starting squid redirection:' || echo -n '.'
         ( pgrep -u proxy squid 2>&1 > /dev/null ) && \
           if (iptables -L -v -t nat | grep -q -x "^ *0 *0 *REDIRECT *tcp *\-\- *eth0 *any *anywhere *anywhere *tcp dpt:www redir ports 3128 *$")
-            then echo -n " Squid redirection already in place, so will do nothing..."
-            else /sbin/iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128 && echo -n " doing nat table prerouting chain redirects to port 3128 for eth0 for Squid..."
+            then ( ($verbose_mugglesinit) && echo -n ' Squid redirection already in place, so will do nothing...' || echo -n '.' )
+            else /sbin/iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128 && ( ($verbose_mugglesinit) && echo -n ' doing nat table prerouting chain redirects to port 3128 for eth0 for Squid...' || echo -n '.' )
           fi
-        echo -n " done."
+        ($verbose_mugglesinit) && echo -n ' done.' || echo -n '.'
 
-        echo -n " Starting interfaces check:"
+        ($verbose_mugglesinit) && echo -n ' interfaces check:' || echo -n '.'
         links_down=$(ip link show | grep eth[0-9][0-9]* | grep DOWN | cut -f2 -d: | tr -d "\n")
-        error_count=1 ; maximum_tries=20
+        error_count=1 ; maximum_tries=50
         ## maximum tries - 1 actually
         until ( [ -z "$links_down" ] || [ $error_count -eq $maximum_tries ] )
-        do echo -n " waiting for$links_down to come up..."
-          sleep 1 ; error_count=$((error_count+1))
-          links_down=$(ip link show | grep eth[0-9][0-9]* | grep DOWN | cut -f2 -d: | tr -d "\n")
+        do
+           ($verbose_mugglesinit) && echo -n " waiting for$links_down to come up..." || echo -n '.'
+           sleep 1 ; error_count=$((error_count+1))
+           links_down=$(ip link show | grep eth[0-9][0-9]* | grep DOWN | cut -f2 -d: | tr -d "\n")
         done
 
         if [ $error_count -eq $maximum_tries ]
-          then echo -n " ERROR: maximum tries exceeded."
-          else echo -n " done."
+          then echo -n " ERROR: interfaces maximum tries exceeded." && exit 1
+          else ($verbose_mugglesinit) && echo -n ' done.' || echo -n '.'
         fi
 
         # lenny: networking s40. Choose one of working gateways for default route for this box.
-        ( pgrep -u root -f /usr/local/sbin/defaultrouting 2>&1 > /dev/null ) ||  ( ( /usr/local/sbin/defaultrouting & ) && echo -n " defaultrouting process is running." )
+        ( pgrep -u root -f /usr/local/sbin/defaultrouting 2>&1 > /dev/null ) || ( ( /usr/local/sbin/defaultrouting & ) && ( ($verbose_mugglesinit) && echo -n ' defaultrouting process is running.' || echo -n '.' ))
 
         # lenny: openntpd s20. Aim is to set time right on this box without interfering with ntpdate defaults
-        ( ( /etc/init.d/openntpd stop && /usr/sbin/ntpdate-debian && /etc/init.d/openntpd start ) 2>&1 >/dev/null ) && (echo -n " ntpd stopped, time set, and ntpd restarted." )
+        ( ( /etc/init.d/openntpd stop && /usr/sbin/ntpdate-debian && /etc/init.d/openntpd start ) 2>&1 >/dev/null ) && ( ($verbose_mugglesinit) && echo -n ' ntpd stopped, time set, and ntpd restarted.' || echo -n '.' )
 
 	# lenny: incron s20, dnsmasq s15. Should run incrontab rulerunner entry (with a .leases touch instead of explicitly ?)
-        >/var/lib/misc/dnsmasq.leases.1 && echo -n " dnsmasq.leases.1 zeroed."
-        /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases && echo -n " rulerunner run using dnsmasqleases."
+        >/var/lib/misc/dnsmasq.leases.1 && \
+            ( ($verbose_mugglesinit) && echo -n ' dnsmasq.leases.1 zeroed.' || echo -n '.' )
+        /usr/local/sbin/rulerunner /var/lib/misc/dnsmasq.leases && ( ($verbose_mugglesinit) && echo -n " rulerunner run using dnsmasqleases." || echo -n '.' )
         # >/var/lib/misc/dnsmasq.leases.1 ; touch /var/lib/misc/dnsmasq.leases
 
         # lenny: networking s40. Get a list of updates for muggles
-        echo -n " Starting aptitude stuff:"
+        ($verbose_mugglesinit) && echo -n ' Starting aptitude stuff:' || echo -n '.'
         ( aptitude update ; aptitude -q -s -y safe-upgrade | grep -A1 "The following packages will be upgraded:" | tail -1 | sed "s/^  //" > /var/log/muggles/secupdates ) 2>&1 > /dev/null
-        echo -n " done."
+        ($verbose_mugglesinit) && echo -n ' done.' || echo -n '.'
 
         # lenny: networking s40. Get logging pings if not already doing it.
-        ( pgrep -u root -f /usr/local/sbin/pinglogger 2>&1 > /dev/null ) || ( ( /usr/local/sbin/pinglogger & ) && echo -n " pinglogger process is running." )
+        ( pgrep -u root -f /usr/local/sbin/pinglogger 2>&1 > /dev/null ) || ( ( /usr/local/sbin/pinglogger & ) && ( ($verbose_mugglesinit) && echo -n ' pinglogger process started...' || echo -n '.' ))
 
-        echo " mugglesinit done."
+        echo " mugglesinit."
 	;;
   restart|reload|force-reload)
 	echo "Error: argument '$1' not supported" >&2
