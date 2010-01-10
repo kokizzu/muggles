@@ -242,7 +242,11 @@ package_install etc/network/if-pre-up.d/masq_ipconf		/etc/network/if-pre-up.d/ma
 package_install etc/ethers				/etc/ethers
 package_install etc/logrotate.d/muggles			/etc/logrotate.d/muggles
 package_install etc/init.d/mugglesinit			/etc/init.d/mugglesinit
-update-rc.d mugglesinit defaults 41
+
+if [ "$debian_version" = "lenny" ]
+  then update-rc.d mugglesinit defaults 41
+  else update-rc.d mugglesinit defaults 04
+fi
 
 package_install etc/muggles/forced_uplink.conf		/etc/muggles/forced_uplink.conf
 package_install etc/muggles/pinglogger.conf		/etc/muggles/pinglogger.conf
