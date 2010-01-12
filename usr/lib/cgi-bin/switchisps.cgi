@@ -17,7 +17,7 @@ echo ""
 <PRE>
 EOM
 
-list_of_all_uplinks=`grep uplink[1-9][0-9]*$ /etc/iproute2/rt_tables | cut -f2 | tr '\n' ' '` 
+list_of_all_uplinks=`grep uplink[1-9][0-9]*$ /etc/iproute2/rt_tables | awk '{print $2}' | tr '\n' ' '` 
 #based on what is in rt_tables - ie manually put in upto 99 uplinks if you have 99 uplinks.
 # you must put in only the number of uplinks you have
 
