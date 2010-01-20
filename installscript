@@ -18,12 +18,12 @@ do
 done
 
 if ((packages_needed))
-  then echo "Need to aptitude install $missing_list. Go ahead? [y]"
+  then echo "Need to aptitude update and  aptitude install $missing_list. Go ahead? [y]"
        read yesno
        if [[ $yesno =~ (n|N) ]]
          then exit 0
        else
-         aptitude install $missing_list
+         aptitude update; aptitude install $missing_list
        fi
 fi
 
@@ -249,6 +249,10 @@ if [ "$debian_version" = "lenny" ]
 fi
 
 package_install etc/muggles/forced_uplink.conf		/etc/muggles/forced_uplink.conf
+chown www-data /etc/muggles/forced_uplink.conf
+## also, for sed -i used by machine_settings.cgi, (which needs to be able to write a temp file in directory):
+chgrp www-data /etc/muggles ; chmod g+w /etc/muggles
+
 package_install etc/muggles/pinglogger.conf		/etc/muggles/pinglogger.conf
 package_install etc/muggles/rulerunner.conf		/etc/muggles/rulerunner.conf
 package_install etc/muggles/showcurrent.conf		/etc/muggles/showcurrent.conf
