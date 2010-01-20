@@ -265,6 +265,7 @@ package_install usr/local/sbin/defaultrouting		/usr/local/sbin/defaultrouting
 ## /usr/lib/cgi-bin
 
 package_install usr/lib/cgi-bin/cgi-test.cgi		/usr/lib/cgi-bin/cgi-test.cgi
+package_install usr/lib/cgi-bin/machine_settings.cgi	/usr/lib/cgi-bin/machine_settings.cgi
 package_install usr/lib/cgi-bin/mixed.cgi		/usr/lib/cgi-bin/mixed.cgi
 package_install usr/lib/cgi-bin/showcurrent.cgi		/usr/lib/cgi-bin/showcurrent.cgi
 package_install usr/lib/cgi-bin/shutcommand.cgi		/usr/lib/cgi-bin/shutcommand.cgi
