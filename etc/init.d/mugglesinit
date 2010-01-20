@@ -29,7 +29,7 @@ case "$1" in
         # lenny: squid s30. Transparent squid redirection after you get your squid on.
         ($verbose_mugglesinit) && echo -n ' Starting squid redirection:' || echo -n '.'
         ( pgrep -u proxy squid 2>&1 > /dev/null ) && \
-          if (iptables -L -v -t nat | grep -q -x "^ *0 *0 *REDIRECT *tcp *\-\- *eth0 *any *anywhere *anywhere *tcp dpt:www redir ports 3128 *$")
+          if (iptables -L -v -t nat | grep -q -x "^.*REDIRECT *tcp *\-\- *eth0 *any *anywhere *anywhere *tcp dpt:www redir ports 3128 *$")
             then ( ($verbose_mugglesinit) && echo -n ' Squid redirection already in place, so will do nothing...' || echo -n '.' )
             else /sbin/iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3128 && ( ($verbose_mugglesinit) && echo -n ' doing nat table prerouting chain redirects to port 3128 for eth0 for Squid...' || echo -n '.' )
           fi
