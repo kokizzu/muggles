@@ -315,7 +315,8 @@ ARRAY=(\
 "www-data        $this_host= NOPASSWD: /sbin/shutdown" \
 "www-data        $this_host= NOPASSWD: /sbin/ip" \
 "www-data        $this_host= NOPASSWD: /usr/bin/nmap" \
-"www-data        $this_host= NOPASSWD: /usr/local/sbin/mixed"\
+"www-data        $this_host= NOPASSWD: /usr/local/sbin/mixed" \
+"www-data        $this_host= NOPASSWD: /sbin/iptables"\
 )
 
 while [[ -e /etc/sudoers.tmp ]] ; do ( echo "sudoers.tmp exists - is sudoers being edited already? If so, fix it then continue by pressing enter"  ; read ) ; done

@@ -16,11 +16,10 @@ for ((k=1; k<=$NUMBER_OF_UPLINKS; k++)) ; do
   for ((i=1; i<=$uplinkk_total; i++)) ; do
     machine_name=${uplinkk_machines[i-1]}
     { sudo nmap -sP $machine_name 2>&1 | grep -q 'host up' && machine_ip=$(host -s -t A $machine_name $LANGATEWAYIP | tail -1 | cut -d' ' -f4 | tr -d '\n') ;} \
-    && { echo -n '<a href="http://'$LANGATEWAYIP'" title="'$machine_ip; echo '">'$machine_name'</a>' ;} \
-    || { echo -n '<a href="http://'$LANGATEWAYIP'" title="'$machine_ip; echo '" class="grayout">'$machine_name'</a>' ;} 
+    && { echo -n '<a href="http://'$LANGATEWAYIP/cgi-bin/machine_settings.cgi?machine_name=$machine_name'" title="'$machine_ip; echo '">'$machine_name'</a>' ;} \
+    || { echo -n '<a href="http://'$LANGATEWAYIP/cgi-bin/$machine_settings.cgi?machine_name=$machine_name'" title="'$machine_ip; echo '" class="grayout">'$machine_name'</a>' ;} 
   done
   )
-
 
   ##list each uplink's parsed logs (far connections) 
   uplinkk_far_connectivity[k-1]=$(tail --lines=${lines_for_tail} $remote_pings_log | grep -a ^UPLINK${k} | sed "s/^UPLINK${k}://" | sed 's/$/<br>/')
