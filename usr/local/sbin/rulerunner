@@ -101,7 +101,8 @@ if echo "$add_iplist" | grep -q . ; then
     done
     ## get rid of *all* old rules on that ip just in case they exist
 
-    match_forced_uplink=$(sed -n "s/^$i[ \t][ \t]*\(.*\)$/\1/p" $match_forced_uplink_config_file)
+    iname=$(host -s $i | awk '{print $NF}' | tr -d ".")
+    match_forced_uplink=$(sed -n "s/^$iname[ \t]*\(.*\)$/\1/p" $match_forced_uplink_config_file)
     if [[ -n $match_forced_uplink ]]
     then
           ip rule add from $i table uplink${match_forced_uplink} ; log "added new ip $i to uplink${match_forced_uplink} (decided by $match_forced_uplink_config_file)"
