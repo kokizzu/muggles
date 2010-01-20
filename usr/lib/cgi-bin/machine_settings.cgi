@@ -8,7 +8,6 @@ qs=`echo $CLEAN | sed 's/.* \(QUERY_STRING=.*\)/\1/' | sed 's/ .*//' | sed 's/QU
 
 #eg: QUERY_STRING=uplinkselection=noforce&squidselection=yes... 
 
-
 machine=`echo $qs | grep -o "machine_name=.*" | sed "s/&.*$//" | cut -f2 -d=`
 squidselection=`echo $qs | grep -o "squidselection=.*" | sed "s/&.*$//" | cut -f2 -d=`
 uplinkselection=`echo $qs | grep -o "uplinkselection=.*" | sed "s/&.*$//" | cut -f2 -d=`
@@ -17,7 +16,6 @@ forced_uplink_config_file="/etc/muggles/forced_uplink.conf"
 NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x)
 
 ipused=$(awk "/ $machine /"'{print $3}' /var/lib/misc/dnsmasq.leases)
-linkused=$(ip rule show | awk "/$(awk "/ $machine /"'{print $3}' /var/lib/misc/dnsmasq.leases)/"'{print $5}')
 
 /bin/cat << EOM
 Content-type: text/html
@@ -67,6 +65,8 @@ then
   sed -i "/^$machine.*$/d" $forced_uplink_config_file
 fi
 
+
+linkused=$(ip rule show | awk "/$(awk "/ $machine /"'{print $3}' /var/lib/misc/dnsmasq.leases)/"'{print $5}')
 for ((i=1; i<=$NUMBER_OF_UPLINKS; i++))
 do
 if [ "$uplinkselection" = "uplink$i" ] 
@@ -87,7 +87,8 @@ then
   fi
 fi
 done
-#should log this too... can we use rulerunner function for this?
+linkused=$(ip rule show | awk "/$(awk "/ $machine /"'{print $3}' /var/lib/misc/dnsmasq.leases)/"'{print $5}')
+#should log rulechange... can we use rulerunner function for this?
 
 
 ## uplink status
@@ -101,6 +102,7 @@ then
     if [ "$uplinkselection" = "uplink$i" ] ; then uplinkradiocheck[i]="checked" && uplinkradiocheck[0]=''; fi
   done
 fi
+
 
 /bin/cat << EOM
 <pre>
