@@ -7,17 +7,12 @@
 ## configuration options
 
 dleases_path=/var/lib/misc/dnsmasq.leases
-logon=0
-## logon=1 switches logging on, logon=0 switches it off
+
+## include logging from 
+source /etc/muggles/rulerunner.conf
 
 ## end of configuration options
 
-
-log ()
-{ if [[ "${logon}" == "1" ]] ;
-  then echo "$1" >> /var/log/muggles/rulerunner.log
- fi
-}
 
 log "############$(date):#################"
 log "rules:"

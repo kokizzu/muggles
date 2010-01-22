@@ -7,17 +7,10 @@
 
 dleases_path=$1
 
+## include logging and forced_uplink_config_file from:
 source /etc/muggles/rulerunner.conf
 
 ## end of configuration options
-
-
-log ()
-{ if [[ "${logon}" == "1" ]] ;
-    then echo "$1" >> /var/log/muggles/rulerunner.log
-  fi
-## $1 here is not the argument to main, but the argument to log. Bash is funny that way.
-}
 
 log "############$(date):#################"
 log "dnsmasq leases at: $dleases_path are now :"

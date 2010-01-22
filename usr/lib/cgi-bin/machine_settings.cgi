@@ -1,6 +1,10 @@
 #!/bin/bash
 #set -x -v
 
+## include forced_uplink_config_file and logging from:
+source /etc/muggles/rulerunner.conf
+
+
 ## parse GET method
 DIRTY=`/usr/bin/env | tr "\n" " "`
 CLEAN=${DIRTY//[^a-zA-Z_0-9 &=]/}
@@ -12,7 +16,6 @@ machine=`echo $qs | grep -o "machine_name=.*" | sed "s/&.*$//" | cut -f2 -d=`
 squidselection=`echo $qs | grep -o "squidselection=.*" | sed "s/&.*$//" | cut -f2 -d=`
 uplinkselection=`echo $qs | grep -o "uplinkselection=.*" | sed "s/&.*$//" | cut -f2 -d=`
 
-forced_uplink_config_file="/etc/muggles/forced_uplink.conf"
 NUMBER_OF_UPLINKS=$(ip link show | sed -e 's/[0-9][0-9]*: eth\([0-9][0-9]*\): <BROADCAST,MULTICAST,UP,LOWER_UP>.*/\1/' -e '$!{h;d;}' -e x)
 
 ipused=$(awk "/ $machine /"'{print $3}' /var/lib/misc/dnsmasq.leases)
