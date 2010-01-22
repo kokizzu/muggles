@@ -1,7 +1,6 @@
 #!/bin/bash
 
-LANGATEWAYIP=`ip -4 -o addr show eth0 | sed -n 's/^.*inet \([0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\).*$/\1/p'`
-
+LANGATEWAYIP=`ip -4 -o addr show eth0 | sed -r 's/^.*inet ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}).*$/\1/'`
 
 echo Content-type: text/html
 echo ""
@@ -22,12 +21,7 @@ list_of_all_uplinks=`grep uplink[1-9][0-9]*$ /etc/iproute2/rt_tables | awk '{pri
 # you must put in only the number of uplinks you have
 
 
-## /usr/bin/env | grep ^QUERY_STRING= | tee /usr/lib/cgi-bin/linkstouse
-## todo: use the stored data later for filling checkbox? or just let the checkboxes be blank
-
 list_of_denied_uplinks=`/usr/bin/env | grep ^QUERY_STRING= | sed -e 's/^QUERY_STRING=//g' | sed -e 's/&/ /'g | sed -e 's/=on//g' | sed -e 's/_checkbox//'g`
-#list_of_denied_uplinks=`cat /var/www/cgi-bin/linkstouse | sed -e 's/^QUERY_STRING=//g' | sed -e 's/&/ /'g | sed -e 's/=on//g' | sed -e 's/_checkbox//'g`
-
 
 list_of_allowed_uplinks=`(for i in \`echo $list_of_all_uplinks $list_of_denied_uplinks\`; do echo $i ; done ) | sort | uniq -u| tr '\n' ' '`
 ## list_of_allowed_uplinks= total_uplinks + denied uplinks | sort | uniq -u 

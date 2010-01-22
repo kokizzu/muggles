@@ -17,8 +17,8 @@ source /etc/muggles/pinglogger.conf
 while (true) do
   for ((i=1; i<=$NUMBER_OF_UPLINKS; i++))
   do
-    ( echo -n "UPLINK${i}:$(date +%H:%M): " ; ping -i $ping_interval -q -W $ping_timeout -c $ping_count ${remote_ping_uplinkk_ip[i-1]} 2>&1 | sed -n 's/^.*, \(.*\) packet \(loss\).*/\1 lost/p' ) >> $remote_pings_log
-    ( echo -n "UPLINK${i} bam: $(date +%H:%M): " ; ping -i $ping_interval -q -W $ping_timeout -c $ping_count ${nearipk[i-1]} 2>&1 | sed -n 's/^.*, \(.*\) packet \(loss\).*/\1 lost/p' ) >> $near_pings_log
+    ( echo -n "UPLINK${i}:$(date +%H:%M): " ; ping -i $ping_interval -q -W $ping_timeout -c $ping_count ${remote_ping_uplinkk_ip[i-1]} 2>&1 | sed -r -n 's/^.*, (.*) packet (loss).*/\1 lost/p' ) >> $remote_pings_log
+    ( echo -n "UPLINK${i} bam: $(date +%H:%M): " ; ping -i $ping_interval -q -W $ping_timeout -c $ping_count ${nearipk[i-1]} 2>&1 | sed -r -n 's/^.*, (.*) packet (loss).*/\1 lost/p' ) >> $near_pings_log
   done
 done 
 
