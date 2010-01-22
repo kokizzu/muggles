@@ -5,6 +5,8 @@
 source /etc/muggles/rulerunner.conf
 
 
+
+
 ## parse GET method
 DIRTY=`/usr/bin/env | tr "\n" " "`
 CLEAN=${DIRTY//[^a-zA-Z_0-9 &=]/}
@@ -69,6 +71,7 @@ then
 fi
 
 
+
 linkused=$(ip rule show | awk "/$(awk "/ $machine /"'{print $3}' /var/lib/misc/dnsmasq.leases)/"'{print $5}')
 for ((i=1; i<=$NUMBER_OF_UPLINKS; i++))
 do
@@ -76,17 +79,25 @@ if [ "$uplinkselection" = "uplink$i" ]
 then
   if ( match_forced_uplink quiet )
   then
-    sudo ip rule del from $ipused table $linkused && sudo ip rule add from $ipused table $uplinkselection
-    sed -i "s/^\($machine\)\(.*\)$/\1	$i/" $forced_uplink_config_file
+    log "############$(date):#################"
+    ip rule show | grep uplink | while read line; do log "$line"; done
+    { sudo ip rule del from $ipused table $linkused && log "$ipused removed from $linkused." ; } && \
+    { sudo ip rule add from $ipused table $uplinkselection && log "$ipused will use $uplinkselecton." ; }
+    { sed -i "s/^\($machine\)\(.*\)$/\1	$i/" $forced_uplink_config_file ;} && log "removed any forced setting for $machine from $forced_uplink_config_file"
+    ip rule show | grep uplink | while read line; do log "$line"; done
   else
     ## no forced uplink at present, need to set it:
     if [ "$uplinkselection" != "$linkused" ] 
     ## ie only do if selection differs from linkused 
     then
-      sudo ip rule del from $ipused table $linkused && sudo ip rule add from $ipused table $uplinkselection
+      log "############$(date):#################"
+      ip rule show | grep uplink | while read line; do log "$line"; done
+      { sudo ip rule del from $ipused table $linkused && log "$ipused removed from $linkused." ; } &&\
+      { sudo ip rule add from $ipused table $uplinkselection && log "$ipused will use $uplinkselecton." ;}
     fi
     ## and now set the forced uplink
-    echo "$machine	$i" >>  $forced_uplink_config_file
+    { echo "$machine	$i" >>  $forced_uplink_config_file ;} && log "forcing $machine to use uplink$i in $forced_uplink_config_file"
+    ip rule show | grep uplink | while read line; do log "$line"; done
   fi
 fi
 done
