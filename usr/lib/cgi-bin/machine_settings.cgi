@@ -67,9 +67,11 @@ fi
 
 if [ "$uplinkselection" = "noforce" ] && ( match_forced_uplink quiet )
 then
-  sed -i "/^$machine.*$/d" $forced_uplink_config_file
+  log "############$(date):#################"
+  ip rule show | grep uplink | while read line; do log "$line"; done
+  sed -i "/^$machine.*$/d" $forced_uplink_config_file && log "removed any forced setting for $machine from $forced_uplink_config_file"
+  ip rule show | grep uplink | while read line; do log "$line"; done
 fi
-
 
 
 linkused=$(ip rule show | awk "/$(awk "/ $machine /"'{print $3}' /var/lib/misc/dnsmasq.leases)/"'{print $5}')
@@ -96,13 +98,13 @@ then
       { sudo ip rule add from $ipused table $uplinkselection && log "$ipused will use $uplinkselecton." ;}
     fi
     ## and now set the forced uplink
+    log "############$(date):#################"
     { echo "$machine	$i" >>  $forced_uplink_config_file ;} && log "forcing $machine to use uplink$i in $forced_uplink_config_file"
     ip rule show | grep uplink | while read line; do log "$line"; done
   fi
 fi
 done
 linkused=$(ip rule show | awk "/$(awk "/ $machine /"'{print $3}' /var/lib/misc/dnsmasq.leases)/"'{print $5}')
-#should log rulechange... can we use rulerunner function for this?
 
 
 ## uplink status
